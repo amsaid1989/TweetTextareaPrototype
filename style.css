@@ -1,0 +1,16 @@
+#editor {
+    border: solid 1px #ccc;
+    border-radius: 0.25em;
+    min-height: 200px;
+    padding: 1em;
+}
+
+#editor p {
+    padding: 0;
+    margin: 0;
+}
+
+.hashtag {
+    color: #1d9bf0;
+    font-weight: 999;
+}
