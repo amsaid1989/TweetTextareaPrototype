@@ -5,34 +5,51 @@ const nonWordPattern = /[ \W]/;
 
 const EditorCommon = {
     positionCursorForOtherCharInput: function (range) {
-        const { startContainer, startOffset, endContainer } = range;
+        const { startContainer, startOffset, endContainer, collapsed } = range;
 
         range.deleteContents();
 
         if (startContainer === endContainer) {
             if (startContainer.nodeType === 3) {
-                const prevNode = startContainer.previousElementSibling;
-                const nextNode = startContainer.nextElementSibling;
+                if (collapsed) {
+                    const prevNode = startContainer.previousElementSibling;
+                    const nextNode = startContainer.nextElementSibling;
 
-                if (
-                    !EditorUtils.textNodeFormatted(startContainer) &&
-                    startOffset === 0 &&
-                    prevNode &&
-                    EditorUtils.elementNodeFormatted(prevNode)
-                ) {
-                    range.setStart(
-                        prevNode.firstChild,
-                        prevNode.textContent.length
-                    );
-                }
+                    if (
+                        !EditorUtils.textNodeFormatted(startContainer) &&
+                        startOffset === 0 &&
+                        prevNode &&
+                        EditorUtils.elementNodeFormatted(prevNode)
+                    ) {
+                        range.setStart(
+                            prevNode.firstChild,
+                            prevNode.textContent.length
+                        );
+                    }
 
-                if (
-                    !EditorUtils.textNodeFormatted(startContainer) &&
-                    startOffset === startContainer.textContent.length &&
-                    nextNode &&
-                    EditorUtils.elementNodeFormatted(nextNode)
-                ) {
-                    range.setStart(nextNode.firstChild, 0);
+                    if (
+                        !EditorUtils.textNodeFormatted(startContainer) &&
+                        startOffset === startContainer.textContent.length &&
+                        nextNode &&
+                        EditorUtils.elementNodeFormatted(nextNode)
+                    ) {
+                        range.setStart(nextNode.firstChild, 0);
+                    }
+                } else {
+                    const prevNode = startContainer.previousElementSibling;
+
+                    if (
+                        startOffset === 0 &&
+                        prevNode &&
+                        EditorUtils.elementNodeFormatted(prevNode)
+                    ) {
+                        this.joinEndIntoStart(
+                            range,
+                            prevNode.firstChild,
+                            startContainer,
+                            prevNode.textContent.length
+                        );
+                    }
                 }
             }
         } else {
@@ -104,90 +121,45 @@ const EditorCommon = {
         editor.normalize();
     },
 
-    joinEndIntoStart: function (
-        range,
-        startContainer,
-        endContainer,
-        startOffset
-    ) {
-        if (startContainer.nodeType === 3 && endContainer.nodeType === 3) {
-            const endText = endContainer.textContent;
-            const firstSpaceInEnd = endText.indexOf(" ");
+    deleteAcrossContainers: function (editor, range) {
+        const { startContainer, startOffset, endContainer } = range;
 
-            const offset =
-                firstSpaceInEnd >= 0 ? firstSpaceInEnd : endText.length;
+        const selectedText = range.toString();
 
-            range.setStart(endContainer, 0);
-            range.setEnd(endContainer, offset);
-
-            const textToAdd = range.toString();
-
+        if (selectedText === editor.textContent) {
+            this.removeAllEditorNodes(editor);
+        } else {
             range.deleteContents();
 
-            startContainer.textContent += textToAdd;
-
-            if (
-                EditorUtils.textNodeFormatted(endContainer) &&
-                offset === endText.length
-            ) {
-                const parent = endContainer.parentElement.parentElement;
-
-                parent.removeChild(endContainer.parentElement);
-            }
-
-            range.setStart(startContainer, startOffset);
-            range.collapse(true);
-
-            // Ensure that the text in the startContainer still
-            // matches the pattern of hashtag
-            if (!EditorUtils.allTextMatchesPattern(startContainer)) {
-                const updatedTextNode = this.resetFormatOfTextNode(
+            if (startContainer !== endContainer) {
+                this.joinEndIntoStart(
                     range,
-                    startContainer
+                    startContainer,
+                    endContainer,
+                    startOffset
                 );
+            } else {
+                const prevNode = startContainer.previousElementSibling;
 
-                range.setStart(updatedTextNode, startOffset);
-                range.collapse(true);
+                if (
+                    startOffset === 0 &&
+                    prevNode &&
+                    EditorUtils.elementNodeFormatted(prevNode)
+                ) {
+                    this.joinEndIntoStart(
+                        range,
+                        prevNode.firstChild,
+                        startContainer,
+                        prevNode.textContent.length
+                    );
+                }
             }
         }
+
+        editor.normalize();
     },
 
-    removeTextFormatting: function (
-        range,
-        startContainer,
-        startOffset,
-        updatedOffset
-    ) {
-        range.selectNodeContents(startContainer);
-        range.setStart(startContainer, startOffset);
-
-        const text = range.toString();
-
-        range.deleteContents();
-
-        const parent = startContainer.parentElement.parentElement;
-
-        const offset = EditorUtils.findNodeInParent(
-            startContainer.parentElement,
-            parent
-        );
-
-        range.setStart(parent, offset);
-        range.collapse(true);
-
-        const textNode = document.createTextNode(text);
-
-        range.insertNode(textNode);
-
-        if (startOffset === 0) {
-            parent.removeChild(startContainer.parentElement);
-        }
-
-        range.setStart(textNode, updatedOffset);
-        range.collapse(true);
-    },
-
-    insertParagraph: function (editor, range, enterKeyOnEmptyEditor = false) {
+    insertParagraph: function (editor, range, extraParagraphIfEmpty = false) {
         if (editor.childNodes.length === 0) {
             const pNode1 = EditorUtils.createParagraphNode();
 
@@ -196,7 +168,7 @@ const EditorCommon = {
             range.setStart(pNode1, 0);
             range.collapse(true);
 
-            if (enterKeyOnEmptyEditor) {
+            if (extraParagraphIfEmpty) {
                 const pNode2 = EditorUtils.createParagraphNode();
 
                 editor.appendChild(pNode2);
@@ -260,6 +232,103 @@ const EditorCommon = {
         }
     },
 
+    joinEndIntoStart: function (
+        range,
+        startContainer,
+        endContainer,
+        startOffset
+    ) {
+        /**
+         * This function checks the end container and adds the text
+         * inside it, up to the first space character, to the start
+         * container. If the start container is formatted, then it
+         * will check to ensure that the text still should be formatted.
+         * If not, it will reset the format of the start container.
+         *
+         * If the end container was a formatted node, then it will
+         * remove the span element.
+         *
+         * If the end container was empty, then this means there will
+         * be two formatted elements next to each other. If they
+         * should be joined then the function will join them and
+         * make sure that the text should still be formatted and
+         * reset the formatting if not.
+         */
+
+        if (startContainer.nodeType === 3 && endContainer.nodeType === 3) {
+            const endContainerText = endContainer.textContent;
+
+            // If the endContainer is empty, get the next element.
+            // Otherwise, use the endContainer
+            const endNode =
+                endContainerText.length > 0
+                    ? endContainer
+                    : endContainer.nextElementSibling;
+
+            const endText = endNode.textContent;
+
+            const offset = EditorUtils.findFirstSpaceInText(endText);
+
+            if (endNode) {
+                // If endNode is a span element, get its first child, otherwise
+                // use the endContainer
+                const textNode = endNode.firstChild
+                    ? endNode.firstChild
+                    : endNode;
+
+                range.setStart(textNode, 0);
+                range.setEnd(textNode, offset);
+
+                const textToAdd = range.toString();
+
+                if (
+                    !nonWordPattern.test(textToAdd[0]) ||
+                    textToAdd[0] === "#"
+                ) {
+                    range.deleteContents();
+
+                    startContainer.textContent += textToAdd;
+
+                    if (
+                        EditorUtils.textNodeFormatted(textNode) &&
+                        offset === endText.length
+                    ) {
+                        const parent = textNode.parentElement.parentElement;
+
+                        parent.removeChild(textNode.parentElement);
+                    }
+
+                    range.setStart(startContainer, startOffset);
+                    range.collapse(true);
+
+                    // Ensure that the text in the startContainer still
+                    // matches the pattern of hashtag
+                    if (
+                        !EditorUtils.allTextMatchesPattern(startContainer) &&
+                        EditorUtils.textNodeFormatted(startContainer)
+                    ) {
+                        const updatedTextNode = this.resetFormatOfTextNode(
+                            range,
+                            startContainer
+                        );
+
+                        range.setStart(updatedTextNode, startOffset);
+                        range.collapse(true);
+                    }
+                }
+            } else {
+                // Reset the text selection if no changes were
+                // applied. This is because the last step performed
+                // before the if statement selects a range of
+                // characters. If we don't reset the selection,
+                // these characters will be removed by the input
+                // event.
+                range.setStart(startContainer, startOffset);
+                range.collapse(true);
+            }
+        }
+    },
+
     formatAfterNewParagraph: function (range, prevParagraph, currentParagraph) {
         const lastChild =
             prevParagraph.lastChild.tagName !== "BR"
@@ -288,6 +357,41 @@ const EditorCommon = {
         ) {
             this.resetFormatOfTextNode(range, firstTextNodeInCurrent);
         }
+    },
+
+    removeTextFormatting: function (
+        range,
+        startContainer,
+        startOffset,
+        updatedOffset
+    ) {
+        range.selectNodeContents(startContainer);
+        range.setStart(startContainer, startOffset);
+
+        const text = range.toString();
+
+        range.deleteContents();
+
+        const parent = startContainer.parentElement.parentElement;
+
+        const offset = EditorUtils.findNodeInParent(
+            startContainer.parentElement,
+            parent
+        );
+
+        range.setStart(parent, offset);
+        range.collapse(true);
+
+        const textNode = document.createTextNode(text);
+
+        range.insertNode(textNode);
+
+        if (startOffset === 0) {
+            parent.removeChild(startContainer.parentElement);
+        }
+
+        range.setStart(textNode, updatedOffset);
+        range.collapse(true);
     },
 
     resetFormatOfTextNode: function (range, node) {

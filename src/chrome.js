@@ -4,25 +4,25 @@ import EditorUtils from "./utils.js";
 const hashtagRegex = /#\w*[a-zA-Z]+\w*/;
 const nonWordPattern = /[ \W]/;
 
-const EditorFirefox = {
+const EditorChrome = {
     addNonWordCharacter: function (editor, range) {
         /**
          * TODO (Abdelrahman): There is a lot of duplication between this
-         * function and the Chrome's version. Clean this duplication up.
+         * function and the Firefox's version, so it needs to be cleaned up.
          */
 
-        const { startContainer, startOffset, endContainer } = range;
+        const { startContainer, startOffset, endContainer, endOffset } = range;
 
         if (startContainer === endContainer) {
             if (startContainer.nodeType === 3) {
                 if (EditorUtils.textNodeFormatted(startContainer)) {
-                    range.deleteContents();
-
                     const nodeText = startContainer.textContent;
 
                     if (hashtagRegex.test(nodeText.slice(0, startOffset))) {
-                        const offset = startOffset;
-                        const updatedOffset = 0;
+                        let slice, offset, updatedOffset;
+
+                        offset = startOffset - 1;
+                        updatedOffset = 1;
 
                         EditorCommon.removeTextFormatting(
                             range,
@@ -41,8 +41,6 @@ const EditorFirefox = {
                 }
             }
         } else {
-            range.deleteContents();
-
             let updatedEndContainer = endContainer;
 
             if (
@@ -76,25 +74,25 @@ const EditorFirefox = {
     formatAfterSingleCharDeletion: function (editor, range) {
         const { startContainer, startOffset } = range;
 
-        const prevNode = startContainer.previousElementSibling;
-
         if (
             startContainer.nodeType === 3 &&
-            prevNode &&
-            EditorUtils.elementNodeFormatted(prevNode)
+            EditorUtils.textNodeFormatted(startContainer)
         ) {
-            const prevTextNode = prevNode.firstChild;
+            const nextTextNode =
+                startContainer.parentElement.nextSibling ||
+                startContainer.parentElement.nextElementSibling.firstChild;
 
             if (
-                startOffset === 0 &&
-                (!nonWordPattern.test(startContainer.textContent[0]) ||
-                    startContainer.textContent[0] === "#")
+                nextTextNode &&
+                startOffset === startContainer.textContent.length &&
+                (!nonWordPattern.test(nextTextNode.textContent[0]) ||
+                    nextTextNode.textContent[0] === "#")
             ) {
                 EditorCommon.joinEndIntoStart(
                     range,
-                    prevTextNode,
                     startContainer,
-                    prevTextNode.textContent.length
+                    nextTextNode,
+                    startOffset
                 );
             }
         }
@@ -103,4 +101,4 @@ const EditorFirefox = {
     },
 };
 
-export default EditorFirefox;
+export default EditorChrome;

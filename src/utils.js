@@ -11,12 +11,6 @@ const EditorUtils = {
         return para;
     },
 
-    removeAllEditorNodes: function () {
-        while (editor.firstChild) {
-            editor.removeChild(editor.firstChild);
-        }
-    },
-
     findParentParagraph: function (node) {
         if (node.tagName === "P") {
             return node;
@@ -119,6 +113,12 @@ const EditorUtils = {
         );
 
         return text.slice(wordStart, wordEnd);
+    },
+
+    findFirstSpaceInText: function (text) {
+        const firstSpaceInEnd = text.indexOf(" ");
+
+        return firstSpaceInEnd >= 0 ? firstSpaceInEnd : text.length;
     },
 
     chromeBrowser: function () {
