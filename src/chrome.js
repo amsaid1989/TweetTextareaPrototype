@@ -1,8 +1,6 @@
 import EditorCommon from "./common.js";
 import EditorUtils from "./utils.js";
-
-const hashtagRegex = /#\w*[a-zA-Z]+\w*/;
-const nonWordPattern = /[ \W]/;
+import { hashtagRegex, nonWordPattern } from "./patterns.js";
 
 const EditorChrome = {
     addNonWordCharacter: function (editor, range) {
@@ -74,13 +72,19 @@ const EditorChrome = {
     formatAfterSingleCharDeletion: function (editor, range) {
         const { startContainer, startOffset } = range;
 
-        if (
-            startContainer.nodeType === 3 &&
-            EditorUtils.textNodeFormatted(startContainer)
-        ) {
-            const nextTextNode =
-                startContainer.parentElement.nextSibling ||
-                startContainer.parentElement.nextElementSibling.firstChild;
+        if (startContainer.nodeType === 3) {
+            let nextTextNode;
+
+            if (EditorUtils.textNodeFormatted(startContainer)) {
+                nextTextNode =
+                    startContainer.parentElement.nextElementSibling
+                        ?.firstChild ||
+                    startContainer.parentElement.nextSibling;
+            } else {
+                nextTextNode =
+                    startContainer.nextElementSibling?.firstChild ||
+                    startContainer.nextSibling;
+            }
 
             if (
                 nextTextNode &&

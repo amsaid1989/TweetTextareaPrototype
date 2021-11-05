@@ -1,5 +1,4 @@
-const hashtagRegex = /#\w*[a-zA-Z]+\w*/;
-const nonWordPattern = /[ \W]/;
+import { hashtagRegex, nonWordPattern } from "./patterns.js";
 
 const EditorUtils = {
     createParagraphNode: function () {
@@ -69,7 +68,7 @@ const EditorUtils = {
     },
 
     textNodeFormatted: function (node) {
-        if (!node) {
+        if (!node || !node.parentElement) {
             return false;
         }
 
@@ -116,9 +115,30 @@ const EditorUtils = {
     },
 
     findFirstSpaceInText: function (text) {
-        const firstSpaceInEnd = text.indexOf(" ");
+        /**
+         * This uses the match method rather than the indexOf
+         * method because Chrome replaces some of the space
+         * characters with the HTML entity &nbsp; which isn't
+         * matched against " " using the indexOf method.
+         *
+         * So, when using indexOf(" "), if the entity is
+         * encountered, it will be skipped and the method will
+         * return the index of the following space character.
+         *
+         * The match(/\s/) solves this problem as it matches
+         * both a normal whitespace and the HTML entity &nbsp;
+         *
+         * REVIEW (Abdelrahman): However, it might introduce
+         * another issue because the \s token matches true for
+         * all whitespace characters including tabs and newlines.
+         * It is not clear, at the moment, how this might
+         * affect how this function works, so it needs to be
+         * checked.
+         */
 
-        return firstSpaceInEnd >= 0 ? firstSpaceInEnd : text.length;
+        const firstSpaceInText = text.match(/\s/);
+
+        return firstSpaceInText ? firstSpaceInText.index : text.length;
     },
 
     chromeBrowser: function () {

@@ -1,7 +1,5 @@
 import EditorUtils from "./utils.js";
-
-const hashtagRegex = /#\w*[a-zA-Z]+\w*/;
-const nonWordPattern = /[ \W]/;
+import { hashtagRegex, nonWordPattern } from "./patterns.js";
 
 const EditorCommon = {
     positionCursorForOtherCharInput: function (range) {
@@ -63,6 +61,32 @@ const EditorCommon = {
     },
 
     addOrDeleteInSameContainer: function (editor, range) {
+        if (!EditorUtils.chromeBrowser()) {
+            /**
+             * This addresses a behaviour in Firefox where two
+             * adjacent but separate text nodes won't be joined
+             * together automatically in some cases, like when
+             * the user deletes at the start of a paragraph to
+             * join it with the paragraph before it.
+             *
+             * In this case, if the last node in the previous
+             * paragraph is a text node and the first node in
+             * the current paragraph is a text node, the two
+             * text nodes won't be joined automatically by
+             * Firefox.
+             *
+             * This causes issues with handling the formatting
+             * of the text by this function, since it relies
+             * on checking the current word to see whether it
+             * needs to be formatted or unformatted. If the
+             * two separate text nodes constitute one word and
+             * that word needs to be formatted, it won't get
+             * formatted because it is broken across two nodes.
+             */
+
+            editor.normalize();
+        }
+
         const { startContainer, startOffset } = range;
 
         const currentWord = EditorUtils.getCurrentWord(
@@ -230,6 +254,8 @@ const EditorCommon = {
                 range.collapse(true);
             }
         }
+
+        editor.normalize();
     },
 
     joinEndIntoStart: function (

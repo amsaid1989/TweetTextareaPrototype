@@ -2,11 +2,9 @@ import EditorCommon from "./common.js";
 import EditorFirefox from "./firefox.js";
 import EditorChrome from "./chrome.js";
 import EditorUtils from "./utils.js";
+import { nonWordPattern } from "./patterns.js";
 
 const editor = document.querySelector("#editor");
-
-const hashtagRegex = /#\w*[a-zA-Z]+\w*/;
-const nonWordPattern = /[ \W]/;
 
 // editor.innerHTML =
 //     'hello <span class="hashtag">#100DaysOfCode</span> from Abdelrahman <span class="hashtag">#buildinpublic</span>';
@@ -80,17 +78,6 @@ editor.addEventListener("input", (event) => {
              * the start of the text node, so the formatting in
              * this case needs to be handled differently between
              * the two browsers.
-             */
-
-            /**
-             * TODO (Abdelrahman): The function now handles deleting
-             * space at the start of text node which is preceeded by
-             * a hashtag node. However, it doesn't work in the case
-             * of deleting the space at the end of a text node that
-             * is succeeded by a hashtag node.
-             *
-             * In this case, the formatting of the hashtag node will
-             * need to be reset and this still needs to be implemented.
              */
 
             if (EditorUtils.chromeBrowser()) {

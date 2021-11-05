@@ -1,8 +1,6 @@
 import EditorCommon from "./common.js";
 import EditorUtils from "./utils.js";
-
-const hashtagRegex = /#\w*[a-zA-Z]+\w*/;
-const nonWordPattern = /[ \W]/;
+import { hashtagRegex, nonWordPattern } from "./patterns.js";
 
 const EditorFirefox = {
     addNonWordCharacter: function (editor, range) {
@@ -76,26 +74,81 @@ const EditorFirefox = {
     formatAfterSingleCharDeletion: function (editor, range) {
         const { startContainer, startOffset } = range;
 
-        const prevNode = startContainer.previousElementSibling;
+        const prevNode =
+            startContainer.previousElementSibling ||
+            startContainer.parentElement.previousElementSibling;
+        const nextNode =
+            startContainer.nextElementSibling ||
+            startContainer.parentElement.nextElementSibling;
 
-        if (
-            startContainer.nodeType === 3 &&
-            prevNode &&
-            EditorUtils.elementNodeFormatted(prevNode)
-        ) {
-            const prevTextNode = prevNode.firstChild;
+        if (startContainer.nodeType === 3) {
+            if (prevNode && EditorUtils.elementNodeFormatted(prevNode)) {
+                const prevTextNode = prevNode.firstChild;
+
+                if (
+                    startOffset === 0 &&
+                    (!nonWordPattern.test(startContainer.textContent[0]) ||
+                        startContainer.textContent[0] === "#")
+                ) {
+                    EditorCommon.joinEndIntoStart(
+                        range,
+                        prevTextNode,
+                        startContainer,
+                        prevTextNode.textContent.length
+                    );
+                }
+            } else if (nextNode && EditorUtils.elementNodeFormatted(nextNode)) {
+                const nextTextNode = nextNode.firstChild;
+
+                if (
+                    startOffset === startContainer.textContent.length &&
+                    (!nonWordPattern.test(nextTextNode.textContent[0]) ||
+                        nextTextNode.textContent[0] === "#")
+                ) {
+                    EditorCommon.joinEndIntoStart(
+                        range,
+                        startContainer,
+                        nextTextNode,
+                        startOffset
+                    );
+                }
+            }
+        } else {
+            /**
+             * When the user deletes the space between two hashtag elements
+             * the range ends up selecting the parent paragraph rather than
+             * one of the two text nodes in those elements.
+             */
+
+            const startTextNode =
+                startContainer.childNodes[startOffset - 1]?.firstChild;
+            const endTextNode =
+                startContainer.childNodes[startOffset]?.firstChild;
 
             if (
-                startOffset === 0 &&
-                (!nonWordPattern.test(startContainer.textContent[0]) ||
-                    startContainer.textContent[0] === "#")
+                startTextNode &&
+                endTextNode &&
+                (!nonWordPattern.test(endTextNode.textContent[0]) ||
+                    endTextNode.textContent[0] === "#")
             ) {
                 EditorCommon.joinEndIntoStart(
                     range,
-                    prevTextNode,
-                    startContainer,
-                    prevTextNode.textContent.length
+                    startTextNode,
+                    endTextNode,
+                    startTextNode.textContent.length
                 );
+            } else if (startTextNode) {
+                /**
+                 * This addresses a unique behavior in Firefox where
+                 * if the user enters a hashtag, then adds a space
+                 * but end up removing it, going back to the hashtag
+                 * node, the range ends up selecting the parent
+                 * paragraph of the hashtag element, rather than the
+                 * text node inside the hashtag element.
+                 */
+
+                range.setStart(startTextNode, startTextNode.textContent.length);
+                range.collapse(true);
             }
         }
 
