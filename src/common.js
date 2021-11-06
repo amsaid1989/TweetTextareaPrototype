@@ -148,7 +148,7 @@ const EditorCommon = {
         if (EditorUtils.wordMatchesPattern(nextWord)) {
             const container = updatedStartContainer || startContainer;
             const offset = updatedStartOffset || startOffset;
-            const wordStart = startOffset;
+            const wordStart = offset;
             const wordEnd = wordStart + nextWord.length;
 
             this.formatWord(range, container, offset, wordStart, wordEnd);
