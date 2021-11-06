@@ -3,15 +3,15 @@ import EditorUtils from "./utils.js";
 import { hashtagRegex, nonWordPattern } from "./patterns.js";
 
 const EditorFirefox = {
-    addNonWordCharacter: function (editor, range) {
+    removeFormatAfterNonWordCharacter: function (editor, range) {
         /**
          * TODO (Abdelrahman): There is a lot of duplication between this
          * function and the Chrome's version. Clean this duplication up.
          */
 
-        const { startContainer, startOffset, endContainer } = range;
+        const { startContainer, startOffset, endContainer, endOffset } = range;
 
-        if (startContainer === endContainer) {
+        if (startContainer === endContainer || endOffset === 0) {
             if (startContainer.nodeType === 3) {
                 if (EditorUtils.textNodeFormatted(startContainer)) {
                     range.deleteContents();

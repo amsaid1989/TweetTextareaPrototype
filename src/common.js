@@ -2,12 +2,38 @@ import EditorUtils from "./utils.js";
 import { hashtagRegex, nonWordPattern } from "./patterns.js";
 
 const EditorCommon = {
-    positionCursorForOtherCharInput: function (range) {
-        const { startContainer, startOffset, endContainer, collapsed } = range;
+    positionCursorForOtherCharInput: function (editor, range) {
+        const {
+            startContainer,
+            startOffset,
+            endContainer,
+            endOffset,
+            collapsed,
+        } = range;
+
+        if (
+            !range.collapsed &&
+            range.toString().length === editor.textContent.length
+        ) {
+            /**
+             * When the user selects all the text in the editor and
+             * starts typing, all nodes of the editor needs to be
+             * cleared before adding a new paragraph that will
+             * contain the text.
+             *
+             * This is needed here because in this case, the
+             * insertParagraph function won't be called in the
+             * 'beforeinput' event as it would be if the user starts
+             * typing in an empty editor, so we need to ensure that
+             * it gets called.
+             */
+
+            this.insertParagraph(editor, range, false);
+        }
 
         range.deleteContents();
 
-        if (startContainer === endContainer) {
+        if (startContainer === endContainer || endOffset === 0) {
             if (startContainer.nodeType === 3) {
                 if (collapsed) {
                     const prevNode = startContainer.previousElementSibling;
@@ -94,59 +120,54 @@ const EditorCommon = {
             startOffset
         ).trim();
 
-        /**
-         * In this function, the matching against the regex pattern
-         * is done using the String.match method rather than the
-         * RegExp.test method.
-         * This is because here were are matching the current word,
-         * so we need the entire word to match the pattern. This
-         * could be achieved by using the '^' and '$' tokens in
-         * the pattern itself, but that makes it harder to use the
-         * pattern in other cases, where we just want to test if
-         * a string contains a word that matches the pattern,
-         * even if the entire string doesn't match.
-         * Therefore, I resorted to using the String.match method
-         * and testing the index of the match to make sure it starts
-         * at the beginning of the word
-         */
+        this.formatOrResetWord(range, startContainer, startOffset, currentWord);
+    },
 
-        const match = currentWord.match(hashtagRegex);
+    addNonWordCharInSameContainer: function (editor, range) {
+        const { startContainer, startOffset } = range;
 
-        if (
-            match &&
-            match.index === 0 &&
-            match[0].trim().length === currentWord.length &&
-            !EditorUtils.textNodeFormatted(startContainer)
-        ) {
-            const { wordStart, wordEnd } = EditorUtils.getWordBoundaries(
+        let updatedStartContainer, updatedStartOffset;
+
+        const { prevWord, nextWord } =
+            EditorUtils.getWordsBeforeAndAfterCurrentIndex(
                 startContainer.textContent,
                 startOffset
             );
 
-            const span = document.createElement("span");
-            span.className = "hashtag";
+        if (EditorUtils.wordMatchesPattern(prevWord)) {
+            const wordEnd = startOffset - 1;
+            const wordStart = wordEnd - prevWord.length;
 
-            range.setStart(startContainer, wordStart);
-            range.setEnd(startContainer, wordEnd);
+            this.formatWord(range, startContainer, wordEnd, wordStart, wordEnd);
 
-            range.surroundContents(span);
-
-            range.setStart(span.firstChild, startOffset - wordStart);
-            range.collapse(true);
-        } else if (
-            (!hashtagRegex.test(currentWord) ||
-                match.index !== 0 ||
-                match[0].trim().length !== currentWord.length) &&
-            EditorUtils.textNodeFormatted(startContainer)
-        ) {
-            this.removeTextFormatting(range, startContainer, 0, startOffset);
+            updatedStartContainer =
+                range.startContainer.parentElement.nextSibling;
+            updatedStartOffset = 1;
         }
+
+        if (EditorUtils.wordMatchesPattern(nextWord)) {
+            const container = updatedStartContainer || startContainer;
+            const offset = updatedStartOffset || startOffset;
+            const wordStart = startOffset;
+            const wordEnd = wordStart + nextWord.length;
+
+            this.formatWord(range, container, offset, wordStart, wordEnd);
+
+            updatedStartContainer = range.startContainer;
+            updatedStartOffset = range.startOffset;
+        }
+
+        const rangeStartContainer = updatedStartContainer || startContainer;
+        const rangeStartOffset = updatedStartOffset || startOffset;
+
+        range.setStart(rangeStartContainer, rangeStartOffset);
+        range.collapse(true);
 
         editor.normalize();
     },
 
     deleteAcrossContainers: function (editor, range) {
-        const { startContainer, startOffset, endContainer } = range;
+        const { startContainer, startOffset, endContainer, endOffset } = range;
 
         const selectedText = range.toString();
 
@@ -155,14 +176,7 @@ const EditorCommon = {
         } else {
             range.deleteContents();
 
-            if (startContainer !== endContainer) {
-                this.joinEndIntoStart(
-                    range,
-                    startContainer,
-                    endContainer,
-                    startOffset
-                );
-            } else {
+            if (startContainer === endContainer || endOffset === 0) {
                 const prevNode = startContainer.previousElementSibling;
 
                 if (
@@ -177,6 +191,13 @@ const EditorCommon = {
                         prevNode.textContent.length
                     );
                 }
+            } else {
+                this.joinEndIntoStart(
+                    range,
+                    startContainer,
+                    endContainer,
+                    startOffset
+                );
             }
         }
 
@@ -184,7 +205,17 @@ const EditorCommon = {
     },
 
     insertParagraph: function (editor, range, extraParagraphIfEmpty = false) {
-        if (editor.childNodes.length === 0) {
+        const selectedText = range.toString();
+
+        if (
+            editor.childNodes.length === 0 ||
+            (!range.collapsed &&
+                selectedText.length === editor.textContent.length)
+        ) {
+            // Remove all the editor nodes if it isn't empty but
+            // all of its text content is selected
+            this.removeAllEditorNodes(editor);
+
             const pNode1 = EditorUtils.createParagraphNode();
 
             editor.appendChild(pNode1);
@@ -385,6 +416,52 @@ const EditorCommon = {
         }
     },
 
+    formatOrResetWord: function (range, startContainer, startOffset, word) {
+        if (
+            EditorUtils.wordMatchesPattern(word) &&
+            !EditorUtils.textNodeFormatted(startContainer)
+        ) {
+            const { wordStart, wordEnd } = EditorUtils.getWordBoundaries(
+                startContainer.textContent,
+                startOffset
+            );
+
+            this.formatWord(
+                range,
+                startContainer,
+                startOffset,
+                wordStart,
+                wordEnd
+            );
+        } else if (
+            !EditorUtils.wordMatchesPattern(word) &&
+            EditorUtils.textNodeFormatted(startContainer)
+        ) {
+            this.removeTextFormatting(range, startContainer, 0, startOffset);
+        }
+
+        editor.normalize();
+    },
+
+    formatWord: function (
+        range,
+        startContainer,
+        startOffset,
+        wordStart,
+        wordEnd
+    ) {
+        const span = document.createElement("span");
+        span.className = "hashtag";
+
+        range.setStart(startContainer, wordStart);
+        range.setEnd(startContainer, wordEnd);
+
+        range.surroundContents(span);
+
+        range.setStart(span.firstChild, startOffset - wordStart);
+        range.collapse(true);
+    },
+
     removeTextFormatting: function (
         range,
         startContainer,
@@ -440,9 +517,7 @@ const EditorCommon = {
     },
 
     removeAllEditorNodes: function (editor) {
-        while (editor.firstChild) {
-            editor.removeChild(editor.firstChild);
-        }
+        EditorUtils.removeAllChildNodes(editor);
     },
 };
 

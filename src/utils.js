@@ -91,6 +91,36 @@ const EditorUtils = {
         return match && match.index === 0 && match[0].length === text.length;
     },
 
+    wordMatchesPattern: function (word) {
+        /**
+         * In this function, the matching against the regex pattern
+         * is done using the String.match method rather than the
+         * RegExp.test method.
+         * This is because here were are matching the current word,
+         * so we need the entire word to match the pattern. This
+         * could be achieved by using the '^' and '$' tokens in
+         * the pattern itself, but that makes it harder to use the
+         * pattern in other cases, where we just want to test if
+         * a string contains a word that matches the pattern,
+         * even if the entire string doesn't match.
+         * Therefore, I resorted to using the String.match method
+         * and testing the index of the match to make sure it starts
+         * at the beginning of the word
+         */
+
+        const match = word.match(hashtagRegex);
+
+        if (
+            match &&
+            match.index === 0 &&
+            match[0].trim().length === word.length
+        ) {
+            return true;
+        }
+
+        return false;
+    },
+
     getWordBoundaries: function (text, currentIndex) {
         const before = text.slice(0, currentIndex);
         const after = text.slice(currentIndex);
@@ -112,6 +142,16 @@ const EditorUtils = {
         );
 
         return text.slice(wordStart, wordEnd);
+    },
+
+    getWordsBeforeAndAfterCurrentIndex: function (text, currentIndex) {
+        const before = text.slice(0, currentIndex - 1);
+        const after = text.slice(currentIndex);
+
+        const prevWord = before.split(" ").pop();
+        const nextWord = after.split(" ")[0];
+
+        return { prevWord, nextWord };
     },
 
     findFirstSpaceInText: function (text) {
@@ -139,6 +179,12 @@ const EditorUtils = {
         const firstSpaceInText = text.match(/\s/);
 
         return firstSpaceInText ? firstSpaceInText.index : text.length;
+    },
+
+    removeAllChildNodes: function (node) {
+        while (node.firstChild) {
+            node.removeChild(node.firstChild);
+        }
     },
 
     chromeBrowser: function () {

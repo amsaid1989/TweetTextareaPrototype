@@ -6,9 +6,6 @@ import { nonWordPattern } from "./patterns.js";
 
 const editor = document.querySelector("#editor");
 
-// editor.innerHTML =
-//     'hello <span class="hashtag">#100DaysOfCode</span> from Abdelrahman <span class="hashtag">#buildinpublic</span>';
-
 editor.addEventListener("beforeinput", (event) => {
     const sel = window.getSelection();
     const range = sel.getRangeAt(0);
@@ -31,12 +28,12 @@ editor.addEventListener("beforeinput", (event) => {
         event.data !== "#" &&
         !EditorUtils.chromeBrowser()
     ) {
-        EditorFirefox.addNonWordCharacter(editor, range);
+        EditorFirefox.removeFormatAfterNonWordCharacter(editor, range);
     } else if (
         (event.data && !nonWordPattern.test(event.data)) ||
         event.data === "#"
     ) {
-        EditorCommon.positionCursorForOtherCharInput(range);
+        EditorCommon.positionCursorForOtherCharInput(editor, range);
     } else if (event.inputType.includes("delete") && !range.collapsed) {
         event.preventDefault();
 
@@ -54,18 +51,21 @@ editor.addEventListener("input", (event) => {
         event.data !== "#" &&
         EditorUtils.chromeBrowser()
     ) {
-        EditorChrome.addNonWordCharacter(editor, range);
+        EditorChrome.removeFormatAfterNonWordCharacter(editor, range);
     }
 
     if (
-        (event.data && !nonWordPattern.test(event.data)) ||
-        event.data === "#" ||
+        event.data ||
         (event.inputType.includes("delete") &&
             range.startContainer === range.endContainer)
     ) {
-        // This handles formatting or resetting the format of
-        // a word when the user adds or deletes characters
-        EditorCommon.addOrDeleteInSameContainer(editor, range);
+        if (nonWordPattern.test(event.data) && event.data !== "#") {
+            EditorCommon.addNonWordCharInSameContainer(editor, range);
+        } else {
+            // This handles formatting or resetting the format of
+            // a word when the user adds or deletes characters
+            EditorCommon.addOrDeleteInSameContainer(editor, range);
+        }
 
         if (event.inputType.includes("delete")) {
             /**
