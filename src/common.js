@@ -3,14 +3,6 @@ import { hashtagRegex, nonWordPattern } from "./patterns.js";
 
 const EditorCommon = {
     positionCursorForOtherCharInput: function (editor, range) {
-        const {
-            startContainer,
-            startOffset,
-            endContainer,
-            endOffset,
-            collapsed,
-        } = range;
-
         if (
             !range.collapsed &&
             range.toString().length === editor.textContent.length
@@ -31,9 +23,17 @@ const EditorCommon = {
             this.insertParagraph(editor, range, false);
         }
 
+        const {
+            startContainer,
+            startOffset,
+            endContainer,
+            endOffset,
+            collapsed,
+        } = range;
+
         range.deleteContents();
 
-        if (startContainer === endContainer || endOffset === 0) {
+        if (startContainer === endContainer) {
             if (startContainer.nodeType === 3) {
                 if (collapsed) {
                     const prevNode = startContainer.previousElementSibling;
@@ -60,11 +60,6 @@ const EditorCommon = {
                         range.setStart(nextNode.firstChild, 0);
                     }
                 } else {
-                    /**
-                     * TODO (Abdelrahman): Fix this branch of the code as it
-                     * doesn't address all the possible scenarios.
-                     */
-
                     const prevNode = startContainer.previousElementSibling;
 
                     if (
@@ -82,11 +77,12 @@ const EditorCommon = {
                 }
             }
         } else {
-            this.joinEndIntoStart(
+            this.formatAndMergeAcrossContainers(
                 range,
                 startContainer,
+                startOffset,
                 endContainer,
-                startOffset
+                endOffset
             );
         }
     },
@@ -153,8 +149,10 @@ const EditorCommon = {
         if (EditorUtils.wordMatchesPattern(nextWord)) {
             const container = updatedStartContainer || startContainer;
             const offset = updatedStartOffset || startOffset;
+
+            const word = nextWord.match(hashtagRegex)[0];
             const wordStart = offset;
-            const wordEnd = wordStart + nextWord.length;
+            const wordEnd = wordStart + word.length;
 
             this.formatWord(range, container, offset, wordStart, wordEnd);
 
@@ -185,7 +183,7 @@ const EditorCommon = {
         } else {
             range.deleteContents();
 
-            if (startContainer === endContainer || endOffset === 0) {
+            if (startContainer === endContainer) {
                 if (
                     EditorUtils.textNodeFormatted(startContainer) &&
                     !hashtagRegex.test(startContainer.textContent)
@@ -212,20 +210,14 @@ const EditorCommon = {
                             prevNode.textContent.length
                         );
                     }
-
-                    /**
-                     * TODO (Abdelrahman): Handle the case where all characters,
-                     * up to the start of a hashtag node, are deleted. Currently,
-                     * if the hashtag node joins with another text node or another
-                     * hashtag node, their formatting doesn't get updated.
-                     */
                 }
             } else {
-                this.joinEndIntoStart(
+                this.formatAndMergeAcrossContainers(
                     range,
                     startContainer,
+                    startOffset,
                     endContainer,
-                    startOffset
+                    endOffset
                 );
             }
         }
@@ -303,6 +295,11 @@ const EditorCommon = {
 
                 range.insertNode(pNode);
 
+                // This is added to fix an issue where there are sometimes
+                // empty text nodes left in the paragraphs, which end up
+                // causing issues for the formatAfterNewParagraph function
+                editor.normalize();
+
                 this.formatAfterNewParagraph(range, parentParagraph, pNode);
 
                 const start =
@@ -316,6 +313,40 @@ const EditorCommon = {
         }
 
         editor.normalize();
+    },
+
+    formatAndMergeAcrossContainers: function (
+        range,
+        startContainer,
+        startOffset,
+        endContainer,
+        endOffset
+    ) {
+        let startTextNode = startContainer;
+        let endTextNode = endContainer;
+        let offset = startOffset;
+
+        if (
+            startOffset === 0 &&
+            !EditorUtils.textNodeFormatted(startContainer)
+        ) {
+            const prevNode = startContainer.previousElementSibling;
+
+            if (prevNode && EditorUtils.elementNodeFormatted(prevNode)) {
+                startTextNode = prevNode.firstChild;
+                offset = prevNode.textContent.length;
+            }
+        }
+
+        if (endOffset === 0 && !EditorUtils.textNodeFormatted(endContainer)) {
+            const nextNode = endContainer.nextElementSibling;
+
+            if (nextNode && EditorUtils.elementNodeFormatted(nextNode)) {
+                endTextNode = nextNode.firstChild;
+            }
+        }
+
+        this.joinEndIntoStart(range, startTextNode, endTextNode, offset);
     },
 
     joinEndIntoStart: function (
@@ -475,8 +506,9 @@ const EditorCommon = {
                     !EditorUtils.textNodeFormatted(firstTextNodeInCurrent) &&
                     EditorUtils.wordMatchesPattern(currentWord)
                 ) {
+                    const word = currentWord.match(hashtagRegex)[0];
                     const wordStart = 0;
-                    const wordEnd = wordStart + currentWord.length;
+                    const wordEnd = wordStart + word.length;
 
                     this.formatWord(
                         range,

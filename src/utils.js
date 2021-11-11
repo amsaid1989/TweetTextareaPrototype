@@ -113,7 +113,8 @@ const EditorUtils = {
         if (
             match &&
             match.index === 0 &&
-            match[0].trim().length === word.length
+            (word[match[0].length] === undefined ||
+                word[match[0].length] !== "#")
         ) {
             return true;
         }
