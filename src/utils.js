@@ -125,9 +125,9 @@ const EditorUtils = {
         const before = text.slice(0, currentIndex);
         const after = text.slice(currentIndex);
 
-        const wordStart = before.lastIndexOf(" ") + 1;
+        const wordStart = this.findLastSpaceInText(before) + 1;
 
-        const firstSpaceAfter = after.indexOf(" ");
+        const firstSpaceAfter = this.findFirstSpaceInText(after);
 
         const wordEnd =
             firstSpaceAfter >= 0 ? currentIndex + firstSpaceAfter : text.length;
@@ -179,6 +179,14 @@ const EditorUtils = {
         const firstSpaceInText = text.match(/\s/);
 
         return firstSpaceInText ? firstSpaceInText.index : text.length;
+    },
+
+    findLastSpaceInText: function (text) {
+        const indices = Array.from(text.matchAll(/\s/g))
+            .map((match) => match.index)
+            .sort((a, b) => a - b);
+
+        return indices.length > 0 ? indices[indices.length - 1] : -1;
     },
 
     removeAllChildNodes: function (node) {

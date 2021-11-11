@@ -30,15 +30,15 @@ editor.addEventListener("beforeinput", (event) => {
     ) {
         EditorFirefox.removeFormatAfterNonWordCharacter(editor, range);
     } else if (
-        (event.data && !nonWordPattern.test(event.data)) ||
-        event.data === "#"
+        event.data &&
+        (!nonWordPattern.test(event.data) || event.data === "#")
     ) {
         EditorCommon.positionCursorForOtherCharInput(editor, range);
     } else if (event.inputType.includes("delete") && !range.collapsed) {
         event.preventDefault();
 
         // Handles how a selection of characters is deleted
-        EditorCommon.deleteAcrossContainers(editor, range);
+        EditorCommon.deleteMultipleCharacters(editor, range);
     }
 });
 

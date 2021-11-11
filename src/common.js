@@ -60,6 +60,11 @@ const EditorCommon = {
                         range.setStart(nextNode.firstChild, 0);
                     }
                 } else {
+                    /**
+                     * TODO (Abdelrahman): Fix this branch of the code as it
+                     * doesn't address all the possible scenarios.
+                     */
+
                     const prevNode = startContainer.previousElementSibling;
 
                     if (
@@ -157,8 +162,12 @@ const EditorCommon = {
             updatedStartOffset = range.startOffset;
         }
 
-        const rangeStartContainer = updatedStartContainer || startContainer;
-        const rangeStartOffset = updatedStartOffset || startOffset;
+        const rangeStartContainer =
+            updatedStartContainer !== undefined
+                ? updatedStartContainer
+                : startContainer;
+        const rangeStartOffset =
+            updatedStartOffset !== undefined ? updatedStartOffset : startOffset;
 
         range.setStart(rangeStartContainer, rangeStartOffset);
         range.collapse(true);
@@ -166,7 +175,7 @@ const EditorCommon = {
         editor.normalize();
     },
 
-    deleteAcrossContainers: function (editor, range) {
+    deleteMultipleCharacters: function (editor, range) {
         const { startContainer, startOffset, endContainer, endOffset } = range;
 
         const selectedText = range.toString();
@@ -177,19 +186,39 @@ const EditorCommon = {
             range.deleteContents();
 
             if (startContainer === endContainer || endOffset === 0) {
-                const prevNode = startContainer.previousElementSibling;
-
                 if (
-                    startOffset === 0 &&
-                    prevNode &&
-                    EditorUtils.elementNodeFormatted(prevNode)
+                    EditorUtils.textNodeFormatted(startContainer) &&
+                    !hashtagRegex.test(startContainer.textContent)
                 ) {
-                    this.joinEndIntoStart(
+                    const updatedStart = this.resetFormatOfTextNode(
                         range,
-                        prevNode.firstChild,
-                        startContainer,
-                        prevNode.textContent.length
+                        startContainer
                     );
+
+                    range.setStart(updatedStart, startOffset);
+                    range.collapse(true);
+                } else {
+                    const prevNode = startContainer.previousElementSibling;
+
+                    if (
+                        startOffset === 0 &&
+                        prevNode &&
+                        EditorUtils.elementNodeFormatted(prevNode)
+                    ) {
+                        this.joinEndIntoStart(
+                            range,
+                            prevNode.firstChild,
+                            startContainer,
+                            prevNode.textContent.length
+                        );
+                    }
+
+                    /**
+                     * TODO (Abdelrahman): Handle the case where all characters,
+                     * up to the start of a hashtag node, are deleted. Currently,
+                     * if the hashtag node joins with another text node or another
+                     * hashtag node, their formatting doesn't get updated.
+                     */
                 }
             } else {
                 this.joinEndIntoStart(
@@ -395,24 +424,69 @@ const EditorCommon = {
 
         const lastTextNodeInPrev = EditorUtils.getTextNode(lastChild);
 
-        if (
-            lastTextNodeInPrev &&
-            EditorUtils.textNodeFormatted(lastTextNodeInPrev) &&
-            !hashtagRegex.test(lastTextNodeInPrev.textContent)
-        ) {
-            this.resetFormatOfTextNode(range, lastTextNodeInPrev);
+        if (lastTextNodeInPrev) {
+            if (
+                EditorUtils.textNodeFormatted(lastTextNodeInPrev) &&
+                !hashtagRegex.test(lastTextNodeInPrev.textContent)
+            ) {
+                this.resetFormatOfTextNode(range, lastTextNodeInPrev);
+            } else {
+                const nodeText = lastTextNodeInPrev.textContent;
+                const lastWord = EditorUtils.getCurrentWord(
+                    nodeText,
+                    nodeText.length
+                );
+
+                if (
+                    !EditorUtils.textNodeFormatted(lastTextNodeInPrev) &&
+                    EditorUtils.wordMatchesPattern(lastWord)
+                ) {
+                    const wordStart = nodeText.length - lastWord.length;
+                    const wordEnd = nodeText.length;
+
+                    this.formatWord(
+                        range,
+                        lastTextNodeInPrev,
+                        nodeText.length,
+                        wordStart,
+                        wordEnd
+                    );
+                }
+            }
         }
 
         const firstTextNodeInCurrent = EditorUtils.getTextNode(
             currentParagraph.firstChild
         );
 
-        if (
-            firstTextNodeInCurrent &&
-            EditorUtils.textNodeFormatted(firstTextNodeInCurrent) &&
-            !hashtagRegex.test(firstTextNodeInCurrent.textContent)
-        ) {
-            this.resetFormatOfTextNode(range, firstTextNodeInCurrent);
+        if (firstTextNodeInCurrent) {
+            if (
+                EditorUtils.textNodeFormatted(firstTextNodeInCurrent) &&
+                !hashtagRegex.test(firstTextNodeInCurrent.textContent)
+            ) {
+                this.resetFormatOfTextNode(range, firstTextNodeInCurrent);
+            } else {
+                const currentWord = EditorUtils.getCurrentWord(
+                    firstTextNodeInCurrent.textContent,
+                    0
+                );
+
+                if (
+                    !EditorUtils.textNodeFormatted(firstTextNodeInCurrent) &&
+                    EditorUtils.wordMatchesPattern(currentWord)
+                ) {
+                    const wordStart = 0;
+                    const wordEnd = wordStart + currentWord.length;
+
+                    this.formatWord(
+                        range,
+                        firstTextNodeInCurrent,
+                        0,
+                        wordStart,
+                        wordEnd
+                    );
+                }
+            }
         }
     },
 
