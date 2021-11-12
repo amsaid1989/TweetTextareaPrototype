@@ -9,7 +9,7 @@ const EditorChrome = {
          * function and the Firefox's version, so it needs to be cleaned up.
          */
 
-        const { startContainer, startOffset, endContainer, endOffset } = range;
+        const { startContainer, startOffset, endContainer } = range;
 
         if (startContainer === endContainer) {
             if (startContainer.nodeType === 3) {
@@ -17,7 +17,7 @@ const EditorChrome = {
                     const nodeText = startContainer.textContent;
 
                     if (hashtagRegex.test(nodeText.slice(0, startOffset))) {
-                        let slice, offset, updatedOffset;
+                        let offset, updatedOffset;
 
                         offset = startOffset - 1;
                         updatedOffset = 1;
@@ -104,6 +104,12 @@ const EditorChrome = {
                 }
             }
         } else {
+            /**
+             * REVIEW (Abdelrahman): I don't think this branch
+             * actually does anything. Test it to make sure it
+             * can be removed.
+             */
+
             let updatedEndContainer = endContainer;
 
             if (
@@ -129,6 +135,20 @@ const EditorChrome = {
 
             range.setStart(updatedEndContainer, 0);
             range.collapse(true);
+        }
+
+        if (range.startOffset === range.startContainer.textContent.length) {
+            const nextNode =
+                range.startContainer.nextElementSibling ||
+                range.startContainer.parentElement.nextElementSibling;
+
+            if (
+                nextNode &&
+                EditorUtils.elementNodeFormatted(nextNode) &&
+                !hashtagRegex.test(nextNode.textContent)
+            ) {
+                EditorCommon.resetFormatOfTextNode(range, nextNode.firstChild);
+            }
         }
 
         editor.normalize();
