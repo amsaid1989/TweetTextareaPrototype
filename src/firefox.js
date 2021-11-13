@@ -74,21 +74,38 @@ const EditorFirefox = {
     formatAfterSingleCharDeletion: function (editor, range) {
         const { startContainer, startOffset } = range;
 
-        const prevNode =
-            startContainer.previousElementSibling ||
-            startContainer.parentElement.previousElementSibling;
-        const nextNode =
-            startContainer.nextElementSibling ||
-            startContainer.parentElement.nextElementSibling;
-
         if (startContainer.nodeType === 3) {
-            if (prevNode && EditorUtils.elementNodeFormatted(prevNode)) {
-                const prevTextNode = prevNode.firstChild;
+            if (
+                startOffset === 0 &&
+                (!nonWordPattern.test(startContainer.textContent[0]) ||
+                    startContainer.textContent[0] === "#")
+            ) {
+                let prevTextNode, nextTextNode;
+
+                if (EditorUtils.textNodeFormatted(startContainer)) {
+                    prevTextNode =
+                        startContainer.parentElement.previousSibling ||
+                        startContainer.parentElement.previousElementSibling
+                            ?.firstChild;
+                    nextTextNode =
+                        startContainer.parentElement.nextSibling ||
+                        startContainer.parentElement.nextElementSibling
+                            ?.firstChild;
+                } else {
+                    prevTextNode =
+                        startContainer.previousSibling ||
+                        startContainer.previousElementSibling?.firstChild;
+                    nextTextNode =
+                        startContainer.nextSibling ||
+                        startContainer.nextElementSibling?.firstChild;
+                }
+
+                const prevText = prevTextNode?.textContent;
 
                 if (
-                    startOffset === 0 &&
-                    (!nonWordPattern.test(startContainer.textContent[0]) ||
-                        startContainer.textContent[0] === "#")
+                    prevTextNode &&
+                    (!nonWordPattern.test(prevText[prevText.length - 1]) ||
+                        prevText[prevText.length - 1] === "#")
                 ) {
                     EditorCommon.joinEndIntoStart(
                         range,
@@ -97,10 +114,9 @@ const EditorFirefox = {
                         prevTextNode.textContent.length
                     );
                 }
-            } else if (nextNode && EditorUtils.elementNodeFormatted(nextNode)) {
-                const nextTextNode = nextNode.firstChild;
 
                 if (
+                    nextTextNode &&
                     startOffset === startContainer.textContent.length &&
                     (!nonWordPattern.test(nextTextNode.textContent[0]) ||
                         nextTextNode.textContent[0] === "#")

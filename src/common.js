@@ -114,14 +114,28 @@ const EditorCommon = {
             editor.normalize();
         }
 
-        const { startContainer, startOffset } = range;
+        if (EditorUtils.chromeBrowser()) {
+            const { startContainer, startOffset } = range;
 
-        const currentWord = EditorUtils.getCurrentWord(
-            startContainer.textContent,
-            startOffset
-        ).trim();
+            if (
+                startContainer.nodeType === 3 &&
+                startOffset === startContainer.textContent.length
+            ) {
+                const nextTextNode =
+                    startContainer.nextElementSibling?.firstChild;
 
-        this.formatOrResetWord(range, startContainer, startOffset, currentWord);
+                if (nextTextNode) {
+                    this.joinEndIntoStart(
+                        range,
+                        startContainer,
+                        nextTextNode,
+                        startOffset
+                    );
+                }
+            }
+        }
+
+        this.checkCurrentWord(range);
     },
 
     addNonWordCharInSameContainer: function (editor, range) {
@@ -295,6 +309,23 @@ const EditorCommon = {
 
                 range.insertNode(pNode);
 
+                if (!EditorUtils.chromeBrowser()) {
+                    // Addresses a behavior in Firefox where if the user
+                    // presses Enter while at the start of a hashtag node
+                    // the hashtag node will be moved to a new paragraph
+                    // but there will be an empty hashtag node left in
+                    // the previous paragraph
+                    for (const node of parentParagraph.childNodes) {
+                        if (
+                            node.nodeType !== 3 &&
+                            EditorUtils.elementNodeFormatted(node) &&
+                            node.textContent.length === 0
+                        ) {
+                            parentParagraph.removeChild(node);
+                        }
+                    }
+                }
+
                 // This is added to fix an issue where there are sometimes
                 // empty text nodes left in the paragraphs, which end up
                 // causing issues for the formatAfterNewParagraph function
@@ -382,11 +413,11 @@ const EditorCommon = {
                     ? endContainer
                     : endContainer.nextElementSibling;
 
-            const endText = endNode.textContent;
-
-            const offset = EditorUtils.findFirstSpaceInText(endText);
-
             if (endNode) {
+                const endText = endNode.textContent;
+
+                const offset = EditorUtils.findFirstSpaceInText(endText);
+
                 // If endNode is a span element, get its first child, otherwise
                 // use the endContainer
                 const textNode = endNode.firstChild
@@ -519,6 +550,27 @@ const EditorCommon = {
                     );
                 }
             }
+        }
+    },
+
+    checkCurrentWord: function (range) {
+        const { startContainer, startOffset } = range;
+
+        let textNode;
+
+        if (startContainer.nodeType === 3) {
+            textNode = startContainer;
+        } else {
+            textNode = EditorUtils.getTextNode(startContainer);
+        }
+
+        if (textNode) {
+            const currentWord = EditorUtils.getCurrentWord(
+                textNode.textContent,
+                startOffset
+            ).trim();
+
+            this.formatOrResetWord(range, textNode, startOffset, currentWord);
         }
     },
 

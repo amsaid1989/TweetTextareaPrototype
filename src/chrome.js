@@ -103,38 +103,6 @@ const EditorChrome = {
                     }
                 }
             }
-        } else {
-            /**
-             * REVIEW (Abdelrahman): I don't think this branch
-             * actually does anything. Test it to make sure it
-             * can be removed.
-             */
-
-            let updatedEndContainer = endContainer;
-
-            if (
-                startContainer.nodeType === 3 &&
-                EditorUtils.textNodeFormatted(startContainer)
-            ) {
-                if (!hashtagRegex.test(startContainer.textContent)) {
-                    EditorCommon.resetFormatOfTextNode(range, startContainer);
-                }
-            }
-
-            if (
-                endContainer.nodeType === 3 &&
-                EditorUtils.textNodeFormatted(endContainer)
-            ) {
-                if (!hashtagRegex.test(endContainer.textContent)) {
-                    updatedEndContainer = EditorCommon.resetFormatOfTextNode(
-                        range,
-                        endContainer
-                    );
-                }
-            }
-
-            range.setStart(updatedEndContainer, 0);
-            range.collapse(true);
         }
 
         if (range.startOffset === range.startContainer.textContent.length) {
@@ -162,13 +130,17 @@ const EditorChrome = {
 
             if (EditorUtils.textNodeFormatted(startContainer)) {
                 nextTextNode =
-                    startContainer.parentElement.nextElementSibling
-                        ?.firstChild ||
-                    startContainer.parentElement.nextSibling;
+                    startContainer.parentElement.nextElementSibling ===
+                    startContainer.parentElement.nextSibling
+                        ? startContainer.parentElement.nextElementSibling
+                              ?.firstChild
+                        : startContainer.parentElement.nextSibling;
             } else {
                 nextTextNode =
-                    startContainer.nextElementSibling?.firstChild ||
-                    startContainer.nextSibling;
+                    startContainer.nextElementSibling ===
+                    startContainer.nextSibling
+                        ? startContainer.nextElementSibling?.firstChild
+                        : startContainer.nextSibling;
             }
 
             if (
