@@ -129,18 +129,15 @@ const EditorChrome = {
             let nextTextNode;
 
             if (EditorUtils.textNodeFormatted(startContainer)) {
-                nextTextNode =
-                    startContainer.parentElement.nextElementSibling ===
-                    startContainer.parentElement.nextSibling
-                        ? startContainer.parentElement.nextElementSibling
-                              ?.firstChild
-                        : startContainer.parentElement.nextSibling;
+                nextTextNode = EditorUtils.getTextNode(
+                    startContainer.parentElement.nextSibling ||
+                        startContainer.parentElement.nextElementSibling
+                );
             } else {
-                nextTextNode =
-                    startContainer.nextElementSibling ===
-                    startContainer.nextSibling
-                        ? startContainer.nextElementSibling?.firstChild
-                        : startContainer.nextSibling;
+                nextTextNode = EditorUtils.getTextNode(
+                    startContainer.nextSibling ||
+                        startContainer.nextElementSibling
+                );
             }
 
             if (

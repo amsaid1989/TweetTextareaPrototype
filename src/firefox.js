@@ -83,21 +83,23 @@ const EditorFirefox = {
                 let prevTextNode, nextTextNode;
 
                 if (EditorUtils.textNodeFormatted(startContainer)) {
-                    prevTextNode =
+                    prevTextNode = EditorUtils.getTextNode(
                         startContainer.parentElement.previousSibling ||
-                        startContainer.parentElement.previousElementSibling
-                            ?.firstChild;
-                    nextTextNode =
+                            startContainer.parentElement.previousElementSibling
+                    );
+                    nextTextNode = EditorUtils.getTextNode(
                         startContainer.parentElement.nextSibling ||
-                        startContainer.parentElement.nextElementSibling
-                            ?.firstChild;
+                            startContainer.parentElement.nextElementSibling
+                    );
                 } else {
-                    prevTextNode =
+                    prevTextNode = EditorUtils.getTextNode(
                         startContainer.previousSibling ||
-                        startContainer.previousElementSibling?.firstChild;
-                    nextTextNode =
+                            startContainer.previousElementSibling
+                    );
+                    nextTextNode = EditorUtils.getTextNode(
                         startContainer.nextSibling ||
-                        startContainer.nextElementSibling?.firstChild;
+                            startContainer.nextElementSibling
+                    );
                 }
 
                 const prevText = prevTextNode?.textContent;

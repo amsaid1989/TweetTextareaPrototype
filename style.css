@@ -1,9 +1,15 @@
+:root {
+    font-size: 15px;
+}
+
 #editor {
     margin-top: 3em;
     border: solid 1px #ccc;
     border-radius: 0.25em;
     min-height: 200px;
     padding: 1em;
+    font-family: monospace;
+    font-size: 1em;
 }
 
 #editor p {
