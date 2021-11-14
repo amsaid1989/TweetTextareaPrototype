@@ -416,7 +416,7 @@ const EditorCommon = {
             if (endNode) {
                 const endText = endNode.textContent;
 
-                const offset = EditorUtils.findFirstSpaceInText(endText);
+                const offset = EditorUtils.findFirstNonwordInText(endText);
 
                 // If endNode is a span element, get its first child, otherwise
                 // use the endContainer

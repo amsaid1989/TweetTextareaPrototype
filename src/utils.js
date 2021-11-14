@@ -126,9 +126,9 @@ const EditorUtils = {
         const before = text.slice(0, currentIndex);
         const after = text.slice(currentIndex);
 
-        const wordStart = this.findLastSpaceInText(before) + 1;
+        const wordStart = this.findLastNonwordInText(before) + 1;
 
-        const firstSpaceAfter = this.findFirstSpaceInText(after);
+        const firstSpaceAfter = this.findFirstNonwordInText(after);
 
         const wordEnd =
             firstSpaceAfter >= 0 ? currentIndex + firstSpaceAfter : text.length;
@@ -155,7 +155,7 @@ const EditorUtils = {
         return { prevWord, nextWord };
     },
 
-    findFirstSpaceInText: function (text) {
+    findFirstNonwordInText: function (text) {
         /**
          * This uses the match method rather than the indexOf
          * method because Chrome replaces some of the space
@@ -177,17 +177,19 @@ const EditorUtils = {
          * checked.
          */
 
-        const firstSpaceInText = text.match(/\s/);
+        const firstNonwordInText = text.match(nonWordPattern);
 
-        return firstSpaceInText ? firstSpaceInText.index : text.length;
+        return firstNonwordInText ? firstNonwordInText.index : text.length;
     },
 
-    findLastSpaceInText: function (text) {
-        const indices = Array.from(text.matchAll(/\s/g))
-            .map((match) => match.index)
-            .sort((a, b) => a - b);
+    findLastNonwordInText: function (text) {
+        const reversed = text.split("").reverse().join("");
 
-        return indices.length > 0 ? indices[indices.length - 1] : -1;
+        const lastNonwordInText = reversed.match(nonWordPattern);
+
+        return lastNonwordInText
+            ? text.length - lastNonwordInText.index - 1
+            : -1;
     },
 
     removeAllChildNodes: function (node) {
