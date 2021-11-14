@@ -77,8 +77,7 @@ const EditorFirefox = {
         if (startContainer.nodeType === 3) {
             if (
                 startOffset === 0 &&
-                (!nonWordPattern.test(startContainer.textContent[0]) ||
-                    startContainer.textContent[0] === "#")
+                !nonWordPattern.test(startContainer.textContent[0])
             ) {
                 let prevTextNode, nextTextNode;
 
@@ -106,8 +105,7 @@ const EditorFirefox = {
 
                 if (
                     prevTextNode &&
-                    (!nonWordPattern.test(prevText[prevText.length - 1]) ||
-                        prevText[prevText.length - 1] === "#")
+                    !nonWordPattern.test(prevText[prevText.length - 1])
                 ) {
                     EditorCommon.joinEndIntoStart(
                         range,
@@ -120,8 +118,7 @@ const EditorFirefox = {
                 if (
                     nextTextNode &&
                     startOffset === startContainer.textContent.length &&
-                    (!nonWordPattern.test(nextTextNode.textContent[0]) ||
-                        nextTextNode.textContent[0] === "#")
+                    !nonWordPattern.test(nextTextNode.textContent[0])
                 ) {
                     EditorCommon.joinEndIntoStart(
                         range,
@@ -146,8 +143,7 @@ const EditorFirefox = {
             if (
                 startTextNode &&
                 endTextNode &&
-                (!nonWordPattern.test(endTextNode.textContent[0]) ||
-                    endTextNode.textContent[0] === "#")
+                !nonWordPattern.test(endTextNode.textContent[0])
             ) {
                 EditorCommon.joinEndIntoStart(
                     range,

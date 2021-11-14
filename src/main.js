@@ -23,16 +23,9 @@ editor.addEventListener("beforeinput", (event) => {
         EditorCommon.insertParagraph(editor, range, true);
     }
 
-    if (
-        nonWordPattern.test(event.data) &&
-        event.data !== "#" &&
-        !EditorUtils.chromeBrowser()
-    ) {
+    if (nonWordPattern.test(event.data) && !EditorUtils.chromeBrowser()) {
         EditorFirefox.removeFormatAfterNonWordCharacter(editor, range);
-    } else if (
-        event.data &&
-        (!nonWordPattern.test(event.data) || event.data === "#")
-    ) {
+    } else if (event.data && !nonWordPattern.test(event.data)) {
         EditorCommon.positionCursorForOtherCharInput(editor, range);
     } else if (event.inputType.includes("delete") && !range.collapsed) {
         event.preventDefault();
@@ -46,11 +39,7 @@ editor.addEventListener("input", (event) => {
     const sel = window.getSelection();
     const range = sel.getRangeAt(0);
 
-    if (
-        nonWordPattern.test(event.data) &&
-        event.data !== "#" &&
-        EditorUtils.chromeBrowser()
-    ) {
+    if (nonWordPattern.test(event.data) && EditorUtils.chromeBrowser()) {
         EditorChrome.removeFormatAfterNonWordCharacter(editor, range);
     }
 
@@ -59,7 +48,7 @@ editor.addEventListener("input", (event) => {
         (event.inputType.includes("delete") &&
             range.startContainer === range.endContainer)
     ) {
-        if (nonWordPattern.test(event.data) && event.data !== "#") {
+        if (nonWordPattern.test(event.data)) {
             EditorCommon.addNonWordCharInSameContainer(editor, range);
         } else {
             // This handles formatting or resetting the format of

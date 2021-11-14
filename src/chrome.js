@@ -143,8 +143,7 @@ const EditorChrome = {
             if (
                 nextTextNode &&
                 startOffset === startContainer.textContent.length &&
-                (!nonWordPattern.test(nextTextNode.textContent[0]) ||
-                    nextTextNode.textContent[0] === "#")
+                !nonWordPattern.test(nextTextNode.textContent[0])
             ) {
                 EditorCommon.joinEndIntoStart(
                     range,

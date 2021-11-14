@@ -429,10 +429,7 @@ const EditorCommon = {
 
                 const textToAdd = range.toString();
 
-                if (
-                    !nonWordPattern.test(textToAdd[0]) ||
-                    textToAdd[0] === "#"
-                ) {
+                if (!nonWordPattern.test(textToAdd[0])) {
                     range.deleteContents();
 
                     startContainer.textContent += textToAdd;
