@@ -224,9 +224,7 @@ const EditorCommon = {
                             startContainer,
                             prevNode.textContent.length
                         );
-                    }
-
-                    if (
+                    } else if (
                         startOffset === startContainer.textContent.length &&
                         nextNode &&
                         EditorUtils.elementNodeFormatted(nextNode)
