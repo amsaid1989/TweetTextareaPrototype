@@ -74,10 +74,13 @@ const EditorFirefox = {
     formatAfterSingleCharDeletion: function (editor, range) {
         const { startContainer, startOffset } = range;
 
+        const nodeText = startContainer.textContent;
+
         if (startContainer.nodeType === 3) {
             if (
-                startOffset === 0 &&
-                !nonWordPattern.test(startContainer.textContent[0])
+                (startOffset === 0 && !nonWordPattern.test(nodeText[0])) ||
+                (startOffset === nodeText.length &&
+                    !nonWordPattern.test(nodeText[nodeText.length - 1]))
             ) {
                 let prevTextNode, nextTextNode;
 
