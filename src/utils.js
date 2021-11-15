@@ -146,11 +146,25 @@ const EditorUtils = {
     },
 
     getWordsBeforeAndAfterCurrentIndex: function (text, currentIndex) {
+        /**
+         * REVIEW (Abdelrahman): Because this function was switched
+         * from splitting words only at space characters to splitting
+         * them at any non-word characters (except the # character),
+         * it needs to be tested extensively to ensure it still works
+         * as expected in both Firefox and Chrome.
+         */
+
         const before = text.slice(0, currentIndex - 1);
         const after = text.slice(currentIndex);
 
-        const prevWord = before.split(" ").pop();
-        const nextWord = after.split(" ")[0];
+        const lastNonwordInBefore = this.findLastNonwordInText(before);
+        const firstNonwordInAfter = this.findFirstNonwordInText(after);
+
+        const prevWord = before.slice(lastNonwordInBefore + 1);
+        const nextWord =
+            firstNonwordInAfter >= 0
+                ? after.slice(0, firstNonwordInAfter)
+                : after.slice(0);
 
         return { prevWord, nextWord };
     },
