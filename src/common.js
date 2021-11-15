@@ -211,6 +211,7 @@ const EditorCommon = {
                     range.collapse(true);
                 } else {
                     const prevNode = startContainer.previousElementSibling;
+                    const nextNode = startContainer.nextElementSibling;
 
                     if (
                         startOffset === 0 &&
@@ -222,6 +223,19 @@ const EditorCommon = {
                             prevNode.firstChild,
                             startContainer,
                             prevNode.textContent.length
+                        );
+                    }
+
+                    if (
+                        startOffset === startContainer.textContent.length &&
+                        nextNode &&
+                        EditorUtils.elementNodeFormatted(nextNode)
+                    ) {
+                        this.joinEndIntoStart(
+                            range,
+                            startContainer,
+                            nextNode.firstChild,
+                            startOffset
                         );
                     }
                 }
