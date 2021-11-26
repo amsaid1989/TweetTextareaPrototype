@@ -33,6 +33,18 @@ editor.addEventListener("beforeinput", (event) => {
         // Handles how a selection of characters is deleted
         EditorCommon.deleteMultipleCharacters(editor, range);
     }
+
+    if (event.inputType === "insertFromPaste") {
+        event.stopPropagation();
+        event.preventDefault();
+
+        const sel = window.getSelection();
+        const range = sel.getRangeAt(0);
+
+        const pastedText = event.dataTransfer.getData("text/plain");
+
+        EditorCommon.pasteText(editor, range, pastedText);
+    }
 });
 
 editor.addEventListener("input", (event) => {

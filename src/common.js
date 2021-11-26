@@ -358,6 +358,38 @@ const EditorCommon = {
         editor.normalize();
     },
 
+    pasteText: function (editor, range, pastedText) {
+        /**
+         * NOTE (Abdelrahman): This is mostly just playing around
+         * to see how things work. It will need to be cleaned up
+         * and implemented properly.
+         */
+
+        if (range.startContainer.nodeType !== 3) {
+            // Inserts a text node when the editor is empty
+            const textNode = document.createTextNode("");
+
+            range.insertNode(textNode);
+
+            range.setStart(textNode, 0);
+            range.collapse(true);
+        }
+
+        const { startContainer, startOffset } = range;
+
+        range.setStart(startContainer, startOffset);
+        range.setEnd(startContainer, startContainer.textContent.length);
+
+        const text = range.toString();
+
+        range.deleteContents();
+
+        startContainer.textContent += pastedText + text;
+
+        range.setStart(startContainer, startOffset + pastedText.length);
+        range.collapse(true);
+    },
+
     formatAndMergeAcrossContainers: function (
         range,
         startContainer,
