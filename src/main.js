@@ -26,6 +26,11 @@ editor.addEventListener("beforeinput", (event) => {
     if (nonWordPattern.test(event.data) && !EditorUtils.chromeBrowser()) {
         EditorFirefox.removeFormatAfterNonWordCharacter(editor, range);
     } else if (event.data && !nonWordPattern.test(event.data)) {
+        /**
+         * REVIEW (Abdelrahman): I think the following function should be
+         * moved to the Firefox specific module because it is irrelevant
+         * for Chrome.
+         */
         EditorCommon.positionCursorForOtherCharInput(editor, range);
     } else if (event.inputType.includes("delete") && !range.collapsed) {
         event.preventDefault();

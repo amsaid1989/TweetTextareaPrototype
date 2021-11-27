@@ -188,6 +188,12 @@ const EditorCommon = {
     },
 
     deleteMultipleCharacters: function (editor, range) {
+        /**
+         * DEBUG (Abdelrahman): When multiple characters in non-formatted
+         * text node are deleted, making the text in the node match the
+         * hashtag pattern, the text doesn't get formatted.
+         */
+
         const { startContainer, startOffset, endContainer, endOffset } = range;
 
         const selectedText = range.toString();
@@ -360,9 +366,9 @@ const EditorCommon = {
 
     pasteText: function (editor, range, pastedText) {
         /**
-         * NOTE (Abdelrahman): This is mostly just playing around
-         * to see how things work. It will need to be cleaned up
-         * and implemented properly.
+         * TODO (Abdelrahman): Test to make sure everything is working
+         * properly and implement pasting across paragraphs because it
+         * currently doesn't work.
          */
 
         if (range.startContainer.nodeType !== 3) {
@@ -375,19 +381,65 @@ const EditorCommon = {
             range.collapse(true);
         }
 
-        const { startContainer, startOffset } = range;
+        const { startContainer, startOffset, endContainer, endOffset } = range;
 
-        range.setStart(startContainer, startOffset);
-        range.setEnd(startContainer, startContainer.textContent.length);
+        let startNode = startContainer;
+        let endNode = endContainer;
+
+        if (startOffset === 0) {
+            if (EditorUtils.textNodeFormatted(startContainer)) {
+                startNode =
+                    startContainer.parentElement.previousSibling || startNode;
+            } else {
+                startNode =
+                    startContainer.previousElementSibling.firstChild ||
+                    startNode;
+            }
+        }
+
+        if (endOffset === endContainer.textContent.length) {
+            if (EditorUtils.textNodeFormatted(endContainer)) {
+                endNode = endContainer.parentElement.nextSibling || endNode;
+            } else {
+                endNode = endContainer.nextElementSibling.firstChild || endNode;
+            }
+        }
+
+        range.deleteContents();
+
+        range.setStart(startNode, 0);
+        range.setEnd(endNode, endNode.textContent.length);
 
         const text = range.toString();
 
         range.deleteContents();
 
-        startContainer.textContent += pastedText + text;
+        if (EditorUtils.textNodeFormatted(startNode) && startNode === endNode) {
+            /**
+             * Addresses a behavior where if the startContainer and endContainer
+             * are the same and the node is formatted, the formatting is not
+             * removed by the range.deleteContents() call.
+             */
 
-        range.setStart(startContainer, startOffset + pastedText.length);
-        range.collapse(true);
+            const parent = startNode.parentElement;
+
+            parent.parentElement.removeChild(parent);
+        }
+
+        const updatedText =
+            text.slice(0, startOffset) + pastedText + text.slice(startOffset);
+
+        const textNode = document.createTextNode(updatedText);
+
+        range.insertNode(textNode);
+
+        this.formatTextNodeAfterPasting(
+            range,
+            textNode,
+            startOffset + pastedText.length
+        );
+
+        editor.normalize();
     },
 
     formatAndMergeAcrossContainers: function (
@@ -640,6 +692,44 @@ const EditorCommon = {
         }
 
         editor.normalize();
+    },
+
+    formatTextNodeAfterPasting: function (range, textNode, offset) {
+        const globalPattern = new RegExp(hashtagRegex, "g");
+
+        const text = textNode.textContent;
+
+        const matches = Array.from(text.matchAll(globalPattern))
+            .map((match) => ({ index: match.index, length: match[0].length }))
+            .sort((a, b) => b.index - a.index);
+
+        for (const match of matches) {
+            range.setStart(textNode, match.index);
+            range.setEnd(textNode, match.index + match.length);
+
+            const span = document.createElement("span");
+            span.className = "hashtag";
+
+            range.surroundContents(span);
+        }
+
+        let node = textNode;
+        let textLength = 0;
+
+        while (textLength < offset) {
+            node = node.nextSibling;
+
+            textLength += node.textContent.length;
+        }
+
+        if (node.nodeType !== 3) {
+            node = node.firstChild;
+        }
+
+        const nodeText = node.textContent;
+
+        range.setStart(node, nodeText.length - (text.length - offset));
+        range.collapse(true);
     },
 
     formatWord: function (
