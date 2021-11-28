@@ -188,12 +188,6 @@ const EditorCommon = {
     },
 
     deleteMultipleCharacters: function (editor, range) {
-        /**
-         * DEBUG (Abdelrahman): When multiple characters in non-formatted
-         * text node are deleted, making the text in the node match the
-         * hashtag pattern, the text doesn't get formatted.
-         */
-
         const { startContainer, startOffset, endContainer, endOffset } = range;
 
         const selectedText = range.toString();
@@ -241,6 +235,15 @@ const EditorCommon = {
                             nextNode.firstChild,
                             startOffset
                         );
+                    }
+
+                    if (hashtagRegex.test(range.startContainer.textContent)) {
+                        /**
+                         * Ensures that the current word is formatted or
+                         * unformatted after deletion.
+                         */
+
+                        this.checkCurrentWord(range);
                     }
                 }
             } else {
