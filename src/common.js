@@ -370,8 +370,7 @@ const EditorCommon = {
     pasteText: function (editor, range, pastedText) {
         /**
          * TODO (Abdelrahman): Test to make sure everything is working
-         * properly and implement pasting across paragraphs because it
-         * currently doesn't work.
+         * properly
          */
 
         if (range.startContainer.nodeType !== 3) {
@@ -384,7 +383,13 @@ const EditorCommon = {
             range.collapse(true);
         }
 
-        const { startContainer, startOffset, endContainer, endOffset } = range;
+        const {
+            startContainer,
+            startOffset,
+            endContainer,
+            endOffset,
+            commonAncestorContainer,
+        } = range;
 
         let startNode = startContainer;
         let endNode = endContainer;
@@ -395,7 +400,7 @@ const EditorCommon = {
                     startContainer.parentElement.previousSibling || startNode;
             } else {
                 startNode =
-                    startContainer.previousElementSibling.firstChild ||
+                    startContainer.previousElementSibling?.firstChild ||
                     startNode;
             }
         }
@@ -404,7 +409,8 @@ const EditorCommon = {
             if (EditorUtils.textNodeFormatted(endContainer)) {
                 endNode = endContainer.parentElement.nextSibling || endNode;
             } else {
-                endNode = endContainer.nextElementSibling.firstChild || endNode;
+                endNode =
+                    endContainer.nextElementSibling?.firstChild || endNode;
             }
         }
 
@@ -413,18 +419,57 @@ const EditorCommon = {
         range.setStart(startNode, 0);
         range.setEnd(endNode, endNode.textContent.length);
 
+        let startNodeParentParagraph;
+        let endNodeParentParagraph;
+
+        if (commonAncestorContainer === editor) {
+            /**
+             * Implements pasting across paragraphs by selecting all
+             * the text in the end paragraph and deleting it
+             */
+
+            startNodeParentParagraph =
+                EditorUtils.findParentParagraph(startNode);
+
+            endNodeParentParagraph = EditorUtils.findParentParagraph(endNode);
+
+            range.setEnd(
+                endNodeParentParagraph,
+                endNodeParentParagraph.childNodes.length
+            );
+        }
+
         const text = range.toString();
 
         range.deleteContents();
 
-        if (EditorUtils.textNodeFormatted(startNode) && startNode === endNode) {
-            /**
-             * Addresses a behavior where if the startContainer and endContainer
-             * are the same and the node is formatted, the formatting is not
-             * removed by the range.deleteContents() call.
-             */
+        if (endNodeParentParagraph) {
+            // Remove the empty paragraph if the user is pasting across
+            // multiple paragraphs
 
+            const parent = endNodeParentParagraph.parentElement;
+
+            parent.removeChild(endNodeParentParagraph);
+        }
+
+        if (
+            EditorUtils.textNodeFormatted(startNode) &&
+            startNode.textContent.length === 0
+        ) {
             const parent = startNode.parentElement;
+
+            parent.parentElement.removeChild(parent);
+        }
+
+        // Make sure to check that the endNode still exists in case it
+        // was in another paragraph which means it would have been
+        // deleted when the parent paragraph was deleted.
+        if (
+            endNode &&
+            EditorUtils.textNodeFormatted(endNode) &&
+            endNode.textContent.length === 0
+        ) {
+            const parent = endNode.parentElement;
 
             parent.parentElement.removeChild(parent);
         }
@@ -433,6 +478,26 @@ const EditorCommon = {
             text.slice(0, startOffset) + pastedText + text.slice(startOffset);
 
         const textNode = document.createTextNode(updatedText);
+
+        if (startNodeParentParagraph) {
+            // Sets the cursor in the correct position if the user
+            // paste acorss paragraphs
+
+            const lastChild = startNodeParentParagraph.lastChild;
+
+            let offset = 0;
+
+            if (lastChild) {
+                if (lastChild.tagName === "BR") {
+                    offset = startNodeParentParagraph.childNodes.length - 1;
+                } else {
+                    offset = startNodeParentParagraph.childNodes.length;
+                }
+            }
+
+            range.setStart(startNodeParentParagraph, offset);
+            range.collapse(true);
+        }
 
         range.insertNode(textNode);
 
@@ -717,12 +782,14 @@ const EditorCommon = {
         }
 
         let node = textNode;
-        let textLength = 0;
+        let textLength = node.textContent.length;
 
         while (textLength < offset) {
             node = node.nextSibling;
 
-            textLength += node.textContent.length;
+            if (node) {
+                textLength += node.textContent.length;
+            }
         }
 
         if (node.nodeType !== 3) {

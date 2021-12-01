@@ -72,6 +72,14 @@ const EditorFirefox = {
     },
 
     formatAfterSingleCharDeletion: function (editor, range) {
+        /**
+         * DEBUG (Abdelrahman): Currently, when startContainer is
+         * the last node in a paragraph, startContainer isn't
+         * formatted and startContainer is preceeded by a formatted
+         * node, if the user deletes the last character in the node,
+         * the cursor jumps to the end of the formatted node before.
+         */
+
         const { startContainer, startOffset } = range;
 
         const nodeText = startContainer.textContent;
