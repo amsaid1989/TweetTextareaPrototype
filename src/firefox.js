@@ -1,6 +1,6 @@
 import EditorCommon from "./common.js";
 import EditorUtils from "./utils.js";
-import { hashtagRegex, nonWordPattern } from "./patterns.js";
+import { hashtagOrMentionRegex, nonWordPattern } from "./patterns.js";
 
 const EditorFirefox = {
     removeFormatAfterNonWordCharacter: function (editor, range) {
@@ -18,7 +18,11 @@ const EditorFirefox = {
 
                     const nodeText = startContainer.textContent;
 
-                    if (hashtagRegex.test(nodeText.slice(0, startOffset))) {
+                    if (
+                        hashtagOrMentionRegex.test(
+                            nodeText.slice(0, startOffset)
+                        )
+                    ) {
                         const offset = startOffset;
                         const updatedOffset = 0;
 
@@ -47,7 +51,7 @@ const EditorFirefox = {
                 startContainer.nodeType === 3 &&
                 EditorUtils.textNodeFormatted(startContainer)
             ) {
-                if (!hashtagRegex.test(startContainer.textContent)) {
+                if (!hashtagOrMentionRegex.test(startContainer.textContent)) {
                     EditorCommon.resetFormatOfTextNode(range, startContainer);
                 }
             }
@@ -56,7 +60,7 @@ const EditorFirefox = {
                 endContainer.nodeType === 3 &&
                 EditorUtils.textNodeFormatted(endContainer)
             ) {
-                if (!hashtagRegex.test(endContainer.textContent)) {
+                if (!hashtagOrMentionRegex.test(endContainer.textContent)) {
                     updatedEndContainer = EditorCommon.resetFormatOfTextNode(
                         range,
                         endContainer

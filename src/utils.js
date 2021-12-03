@@ -1,4 +1,4 @@
-import { hashtagRegex, nonWordPattern } from "./patterns.js";
+import { hashtagOrMentionRegex, nonWordPattern } from "./patterns.js";
 
 const EditorUtils = {
     createParagraphNode: function () {
@@ -86,7 +86,7 @@ const EditorUtils = {
     allTextMatchesPattern: function (node) {
         const text = node.textContent;
 
-        const match = text.match(hashtagRegex);
+        const match = text.match(hashtagOrMentionRegex);
 
         return match && match.index === 0 && match[0].length === text.length;
     },
@@ -108,13 +108,13 @@ const EditorUtils = {
          * at the beginning of the word
          */
 
-        const match = word.match(hashtagRegex);
+        const match = word.match(hashtagOrMentionRegex);
 
         if (
             match &&
             match.index === 0 &&
             (word[match[0].length] === undefined ||
-                word[match[0].length] !== "#")
+                nonWordPattern.test(word[match[0].length]))
         ) {
             return true;
         }

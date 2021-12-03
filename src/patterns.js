@@ -1,4 +1,8 @@
 const hashtagRegex = /#\w*[a-zA-Z]+\w*/;
-const nonWordPattern = /[^#\w]/;
+const mentionRegex = /@\w+/;
+const hashtagOrMentionRegex = new RegExp(
+    hashtagRegex.source + "|" + mentionRegex.source
+);
+const nonWordPattern = /[^#@\w]/;
 
-export { hashtagRegex, nonWordPattern };
+export { hashtagOrMentionRegex, nonWordPattern };

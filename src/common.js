@@ -1,5 +1,5 @@
 import EditorUtils from "./utils.js";
-import { hashtagRegex, nonWordPattern } from "./patterns.js";
+import { hashtagOrMentionRegex, nonWordPattern } from "./patterns.js";
 
 const EditorCommon = {
     positionCursorForOtherCharInput: function (editor, range) {
@@ -149,7 +149,12 @@ const EditorCommon = {
                 startOffset
             );
 
-        if (EditorUtils.wordMatchesPattern(prevWord)) {
+        if (
+            EditorUtils.wordMatchesPattern(prevWord) &&
+            (!startContainer.previousSibling ||
+                (startContainer.previousSibling &&
+                    !startContainer.textContent.startsWith(prevWord)))
+        ) {
             const wordEnd = startOffset - 1;
             const wordStart = wordEnd - prevWord.length;
 
@@ -164,7 +169,7 @@ const EditorCommon = {
             const container = updatedStartContainer || startContainer;
             const offset = updatedStartOffset || startOffset;
 
-            const word = nextWord.match(hashtagRegex)[0];
+            const word = nextWord.match(hashtagOrMentionRegex)[0];
             const wordStart = offset;
             const wordEnd = wordStart + word.length;
 
@@ -200,7 +205,7 @@ const EditorCommon = {
             if (startContainer === endContainer) {
                 if (
                     EditorUtils.textNodeFormatted(startContainer) &&
-                    !hashtagRegex.test(startContainer.textContent)
+                    !hashtagOrMentionRegex.test(startContainer.textContent)
                 ) {
                     const updatedStart = this.resetFormatOfTextNode(
                         range,
@@ -237,7 +242,11 @@ const EditorCommon = {
                         );
                     }
 
-                    if (hashtagRegex.test(range.startContainer.textContent)) {
+                    if (
+                        hashtagOrMentionRegex.test(
+                            range.startContainer.textContent
+                        )
+                    ) {
                         /**
                          * Ensures that the current word is formatted or
                          * unformatted after deletion.
@@ -650,7 +659,7 @@ const EditorCommon = {
         if (lastTextNodeInPrev) {
             if (
                 EditorUtils.textNodeFormatted(lastTextNodeInPrev) &&
-                !hashtagRegex.test(lastTextNodeInPrev.textContent)
+                !hashtagOrMentionRegex.test(lastTextNodeInPrev.textContent)
             ) {
                 this.resetFormatOfTextNode(range, lastTextNodeInPrev);
             } else {
@@ -685,7 +694,7 @@ const EditorCommon = {
         if (firstTextNodeInCurrent) {
             if (
                 EditorUtils.textNodeFormatted(firstTextNodeInCurrent) &&
-                !hashtagRegex.test(firstTextNodeInCurrent.textContent)
+                !hashtagOrMentionRegex.test(firstTextNodeInCurrent.textContent)
             ) {
                 this.resetFormatOfTextNode(range, firstTextNodeInCurrent);
             } else {
@@ -698,7 +707,7 @@ const EditorCommon = {
                     !EditorUtils.textNodeFormatted(firstTextNodeInCurrent) &&
                     EditorUtils.wordMatchesPattern(currentWord)
                 ) {
-                    const word = currentWord.match(hashtagRegex)[0];
+                    const word = currentWord.match(hashtagOrMentionRegex)[0];
                     const wordStart = 0;
                     const wordEnd = wordStart + word.length;
 
@@ -737,6 +746,12 @@ const EditorCommon = {
 
     formatOrResetWord: function (range, startContainer, startOffset, word) {
         if (
+            startOffset === startContainer.textContent.length &&
+            ((word[0] === "#" && word[word.length - 1] === "@") ||
+                (word[0] === "@" && word[word.length - 1] === "#"))
+        ) {
+            this.unformatLastChar(range, startContainer, word);
+        } else if (
             EditorUtils.wordMatchesPattern(word) &&
             !EditorUtils.textNodeFormatted(startContainer)
         ) {
@@ -745,13 +760,18 @@ const EditorCommon = {
                 startOffset
             );
 
-            this.formatWord(
-                range,
-                startContainer,
-                startOffset,
-                wordStart,
-                wordEnd
-            );
+            if (
+                startContainer.textContent[wordStart - 1] &&
+                nonWordPattern.test(startContainer.textContent[wordStart - 1])
+            ) {
+                this.formatWord(
+                    range,
+                    startContainer,
+                    startOffset,
+                    wordStart,
+                    wordEnd
+                );
+            }
         } else if (
             !EditorUtils.wordMatchesPattern(word) &&
             EditorUtils.textNodeFormatted(startContainer)
@@ -763,7 +783,7 @@ const EditorCommon = {
     },
 
     formatTextNodeAfterPasting: function (range, textNode, offset) {
-        const globalPattern = new RegExp(hashtagRegex, "g");
+        const globalPattern = new RegExp(hashtagOrMentionRegex, "g");
 
         const text = textNode.textContent;
 
@@ -873,6 +893,29 @@ const EditorCommon = {
         parent.removeChild(node.parentElement);
 
         return textNode;
+    },
+
+    unformatLastChar: function (range, startContainer, word) {
+        const lastChar = word[word.length - 1];
+
+        startContainer.textContent = word.slice(0, -1);
+
+        const formattedElement = startContainer.parentElement;
+        const paragraphNode = formattedElement.parentElement;
+        const elementIndex = EditorUtils.findNodeInParent(
+            formattedElement,
+            paragraphNode
+        );
+
+        range.setStart(paragraphNode, elementIndex);
+        range.collapse(true);
+
+        const textNode = document.createTextNode(lastChar);
+
+        range.insertNode(textNode);
+
+        range.setStart(textNode, 1);
+        range.collapse(true);
     },
 
     removeAllEditorNodes: function (editor) {

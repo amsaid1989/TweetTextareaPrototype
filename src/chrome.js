@@ -1,6 +1,6 @@
 import EditorCommon from "./common.js";
 import EditorUtils from "./utils.js";
-import { hashtagRegex, nonWordPattern } from "./patterns.js";
+import { hashtagOrMentionRegex, nonWordPattern } from "./patterns.js";
 
 const EditorChrome = {
     removeFormatAfterNonWordCharacter: function (editor, range) {
@@ -16,7 +16,11 @@ const EditorChrome = {
                 if (EditorUtils.textNodeFormatted(startContainer)) {
                     const nodeText = startContainer.textContent;
 
-                    if (hashtagRegex.test(nodeText.slice(0, startOffset))) {
+                    if (
+                        hashtagOrMentionRegex.test(
+                            nodeText.slice(0, startOffset)
+                        )
+                    ) {
                         let offset, updatedOffset;
 
                         offset = startOffset - 1;
@@ -44,7 +48,7 @@ const EditorChrome = {
                     if (
                         parent &&
                         EditorUtils.elementNodeFormatted(parent) &&
-                        !hashtagRegex.test(startContainer.textContent)
+                        !hashtagOrMentionRegex.test(startContainer.textContent)
                     ) {
                         /**
                          * This handles a very specific behavior in Chrome
@@ -113,7 +117,7 @@ const EditorChrome = {
             if (
                 nextNode &&
                 EditorUtils.elementNodeFormatted(nextNode) &&
-                !hashtagRegex.test(nextNode.textContent)
+                !hashtagOrMentionRegex.test(nextNode.textContent)
             ) {
                 EditorCommon.resetFormatOfTextNode(range, nextNode.firstChild);
             }
