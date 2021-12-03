@@ -1,5 +1,10 @@
 import EditorUtils from "./utils.js";
-import { hashtagOrMentionRegex, nonWordPattern } from "./patterns.js";
+import {
+    hashtagRegex,
+    mentionRegex,
+    hashtagOrMentionRegex,
+    nonWordPattern,
+} from "./patterns.js";
 
 const EditorCommon = {
     positionCursorForOtherCharInput: function (editor, range) {
@@ -155,6 +160,12 @@ const EditorCommon = {
                 (startContainer.previousSibling &&
                     !startContainer.textContent.startsWith(prevWord)))
         ) {
+            /**
+             * Format the previous word if it matches a pattern
+             * and doesn't come immediately after another
+             * formatted word with no word boundary between them.
+             */
+
             const wordEnd = startOffset - 1;
             const wordStart = wordEnd - prevWord.length;
 
@@ -783,7 +794,16 @@ const EditorCommon = {
     },
 
     formatTextNodeAfterPasting: function (range, textNode, offset) {
-        const globalPattern = new RegExp(hashtagOrMentionRegex, "g");
+        const updatedHashtagRegex = new RegExp(
+            /[^#\w]/.source + hashtagRegex.source + /[^#\w]/.source
+        );
+        const updatedMentionRegex = new RegExp(
+            /[^@\w]/.source + mentionRegex.source + /[^@\w]/.source
+        );
+        const globalPattern = new RegExp(
+            updatedHashtagRegex.source + "|" + updatedMentionRegex.source,
+            "g"
+        );
 
         const text = textNode.textContent;
 
@@ -792,8 +812,8 @@ const EditorCommon = {
             .sort((a, b) => b.index - a.index);
 
         for (const match of matches) {
-            range.setStart(textNode, match.index);
-            range.setEnd(textNode, match.index + match.length);
+            range.setStart(textNode, match.index + 1);
+            range.setEnd(textNode, match.index + match.length - 1);
 
             const span = document.createElement("span");
             span.className = "hashtag";
