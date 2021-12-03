@@ -72,43 +72,23 @@ const EditorFirefox = {
     },
 
     formatAfterSingleCharDeletion: function (editor, range) {
-        /**
-         * DEBUG (Abdelrahman): Currently, when startContainer is
-         * the last node in a paragraph, startContainer isn't
-         * formatted and startContainer is preceeded by a formatted
-         * node, if the user deletes the last character in the node,
-         * the cursor jumps to the end of the formatted node before.
-         */
-
         const { startContainer, startOffset } = range;
 
         const nodeText = startContainer.textContent;
 
         if (startContainer.nodeType === 3) {
-            if (
-                (startOffset === 0 && !nonWordPattern.test(nodeText[0])) ||
-                (startOffset === nodeText.length &&
-                    !nonWordPattern.test(nodeText[nodeText.length - 1]))
-            ) {
-                let prevTextNode, nextTextNode;
+            if (startOffset === 0 && !nonWordPattern.test(nodeText[0])) {
+                let prevTextNode;
 
                 if (EditorUtils.textNodeFormatted(startContainer)) {
                     prevTextNode = EditorUtils.getTextNode(
                         startContainer.parentElement.previousSibling ||
                             startContainer.parentElement.previousElementSibling
                     );
-                    nextTextNode = EditorUtils.getTextNode(
-                        startContainer.parentElement.nextSibling ||
-                            startContainer.parentElement.nextElementSibling
-                    );
                 } else {
                     prevTextNode = EditorUtils.getTextNode(
                         startContainer.previousSibling ||
                             startContainer.previousElementSibling
-                    );
-                    nextTextNode = EditorUtils.getTextNode(
-                        startContainer.nextSibling ||
-                            startContainer.nextElementSibling
                     );
                 }
 
@@ -123,6 +103,23 @@ const EditorFirefox = {
                         prevTextNode,
                         startContainer,
                         prevTextNode.textContent.length
+                    );
+                }
+            } else if (
+                startOffset === nodeText.length &&
+                !nonWordPattern.test(nodeText[nodeText.length - 1])
+            ) {
+                let nextTextNode;
+
+                if (EditorUtils.textNodeFormatted(startContainer)) {
+                    nextTextNode = EditorUtils.getTextNode(
+                        startContainer.parentElement.nextSibling ||
+                            startContainer.parentElement.nextElementSibling
+                    );
+                } else {
+                    nextTextNode = EditorUtils.getTextNode(
+                        startContainer.nextSibling ||
+                            startContainer.nextElementSibling
                     );
                 }
 

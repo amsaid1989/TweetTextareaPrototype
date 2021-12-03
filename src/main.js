@@ -74,18 +74,6 @@ editor.addEventListener("input", (event) => {
         }
 
         if (event.inputType.includes("delete")) {
-            /**
-             * When user deletes the space separating non formatted
-             * text node from a formatted hashtag node before it,
-             * Chrome by default places the cursor at the end of
-             * the hashtag node.
-             *
-             * Firefox, on the other hand, places the cursor at
-             * the start of the text node, so the formatting in
-             * this case needs to be handled differently between
-             * the two browsers.
-             */
-
             if (EditorUtils.chromeBrowser()) {
                 EditorChrome.formatAfterSingleCharDeletion(editor, range);
             } else {
