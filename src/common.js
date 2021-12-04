@@ -140,7 +140,42 @@ const EditorCommon = {
             }
         }
 
-        this.checkCurrentWord(range);
+        /**
+         * TODO (Abdelrahman): Still needs to be implemented properly.
+         * This technique isn't even at feature parity with what I had
+         * before, let alone implementing the extra functionality I
+         * would like to add.
+         */
+
+        const { startContainer, startOffset } = range;
+
+        const text = startContainer.textContent;
+
+        const match = text.match(hashtagOrMentionRegex);
+
+        if (
+            EditorUtils.textNodeFormatted(startContainer) &&
+            (!hashtagOrMentionRegex.test(text) || match)
+        ) {
+            this.removeTextFormatting(range, startContainer, 0, startOffset);
+        }
+
+        if (match) {
+            const currentNode = range.startContainer;
+
+            range.setStart(currentNode, match.index);
+            range.setEnd(currentNode, match.index + match[0].length);
+
+            const hashtagNode = document.createElement("span");
+            hashtagNode.className = "hashtag";
+
+            range.surroundContents(hashtagNode);
+
+            range.setStart(hashtagNode.firstChild, startOffset - match.index);
+            range.collapse(true);
+        }
+
+        // this.checkCurrentWord(range);
     },
 
     addNonWordCharInSameContainer: function (editor, range) {
