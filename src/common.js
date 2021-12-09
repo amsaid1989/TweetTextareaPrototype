@@ -41,7 +41,9 @@ const EditorCommon = {
         if (startContainer === endContainer) {
             if (startContainer.nodeType === 3) {
                 if (collapsed) {
-                    const prevNode = startContainer.previousElementSibling;
+                    const prevNode =
+                        startContainer.previousElementSibling ||
+                        startContainer.parentElement.previousSibling;
                     const nextNode = startContainer.nextElementSibling;
                     const currentWord = EditorUtils.getCurrentWord(
                         startContainer.textContent,
@@ -58,6 +60,16 @@ const EditorCommon = {
                             prevNode.firstChild,
                             prevNode.textContent.length
                         );
+                    } else if (
+                        EditorUtils.textNodeFormatted(startContainer) &&
+                        startOffset === 0 &&
+                        prevNode &&
+                        prevNode.nodeType === 3 &&
+                        (prevNode.textContent.endsWith("#") ||
+                            prevNode.textContent.endsWith("@"))
+                    ) {
+                        range.setStart(prevNode, prevNode.textContent.length);
+                        range.collapse(true);
                     }
 
                     if (
@@ -102,6 +114,15 @@ const EditorCommon = {
     },
 
     addOrDeleteInSameContainer: function (editor, range) {
+        /**
+         * DEBUG (Abdelrahman): While implementing proper formatting when
+         * a hashtag and a mention come after the other without any
+         * nonWordPattern-matching character separating them, a bug was
+         * introduced where adding characters that don't match the
+         * nonWordPattern at the beginning of a formatted element won't
+         * reset the formatting as it is supposed to do.
+         */
+
         if (!EditorUtils.chromeBrowser()) {
             /**
              * This addresses a behaviour in Firefox where two
@@ -263,6 +284,19 @@ const EditorCommon = {
                         nextNode &&
                         EditorUtils.elementNodeFormatted(nextNode)
                     ) {
+                        /**
+                         * This branch is necessary for Chrome-based browsers
+                         * because they function in a different way than Firefox
+                         * when user deletes multiple characters at the end of
+                         * a text node that is followed by a formatted element
+                         * node.
+                         *
+                         * The reason we check the startOffset in the if conditions
+                         * rather than the endOffset is because this check happens
+                         * after deleting the selected characters, so the startOffset
+                         * is now at the end of the container's text.
+                         */
+
                         this.joinEndIntoStart(
                             range,
                             startContainer,
@@ -296,6 +330,8 @@ const EditorCommon = {
         }
 
         editor.normalize();
+
+        this.checkCurrentWord(range);
     },
 
     insertParagraph: function (editor, range, extraParagraphIfEmpty = false) {
@@ -878,14 +914,20 @@ const EditorCommon = {
             EditorUtils.wordMatchesPattern(word) &&
             !EditorUtils.textNodeFormatted(startContainer)
         ) {
-            const { wordStart, wordEnd } = EditorUtils.getWordBoundaries(
-                startContainer.textContent,
-                startOffset
+            const match = startContainer.textContent.match(
+                hashtagOrMentionRegex
             );
+
+            const wordStart = match.index;
+            const wordEnd = match.index + match[0].length;
 
             if (
                 startContainer.textContent[wordStart - 1] &&
-                nonWordPattern.test(startContainer.textContent[wordStart - 1])
+                (nonWordPattern.test(
+                    startContainer.textContent[wordStart - 1]
+                ) ||
+                    word.startsWith("@#") ||
+                    word.startsWith("#@"))
             ) {
                 this.formatWord(
                     range,

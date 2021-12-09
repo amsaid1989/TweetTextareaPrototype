@@ -1,4 +1,9 @@
-import { hashtagOrMentionRegex, nonWordPattern } from "./patterns.js";
+import {
+    hashtagRegex,
+    mentionRegex,
+    hashtagOrMentionRegex,
+    nonWordPattern,
+} from "./patterns.js";
 
 const EditorUtils = {
     createParagraphNode: function () {
@@ -108,18 +113,31 @@ const EditorUtils = {
          * at the beginning of the word
          */
 
-        const match = word.match(hashtagOrMentionRegex);
+        const updatedHashtagRegex = new RegExp(
+            /[^#\w]*/.source + hashtagRegex.source + /[^#\w]*/.source
+        );
+        const updatedMentionRegex = new RegExp(
+            /[^@\w]*/.source + mentionRegex.source + /[^@\w]*/.source
+        );
+        const globalPattern = new RegExp(
+            updatedHashtagRegex.source + "|" + updatedMentionRegex.source,
+            "g"
+        );
 
-        if (
-            match &&
-            match.index === 0 &&
-            (word[match[0].length] === undefined ||
-                nonWordPattern.test(word[match[0].length]))
-        ) {
-            return true;
-        }
+        return globalPattern.test(word);
 
-        return false;
+        // const match = word.match(hashtagOrMentionRegex);
+
+        // if (
+        //     match &&
+        //     match.index === 0 &&
+        //     (word[match[0].length] === undefined ||
+        //         nonWordPattern.test(word[match[0].length]))
+        // ) {
+        //     return true;
+        // }
+
+        // return false;
     },
 
     getWordBoundaries: function (text, currentIndex) {
