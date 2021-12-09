@@ -43,6 +43,10 @@ const EditorCommon = {
                 if (collapsed) {
                     const prevNode = startContainer.previousElementSibling;
                     const nextNode = startContainer.nextElementSibling;
+                    const currentWord = EditorUtils.getCurrentWord(
+                        startContainer.textContent,
+                        startOffset
+                    );
 
                     if (
                         !EditorUtils.textNodeFormatted(startContainer) &&
@@ -59,6 +63,11 @@ const EditorCommon = {
                     if (
                         !EditorUtils.textNodeFormatted(startContainer) &&
                         startOffset === startContainer.textContent.length &&
+                        !(
+                            currentWord.endsWith("#") ||
+                            currentWord.endsWith("@") ||
+                            /#\w+|@\w+/.test(currentWord)
+                        ) &&
                         nextNode &&
                         EditorUtils.elementNodeFormatted(nextNode)
                     ) {
@@ -122,60 +131,34 @@ const EditorCommon = {
         if (EditorUtils.chromeBrowser()) {
             const { startContainer, startOffset } = range;
 
-            if (
-                startContainer.nodeType === 3 &&
-                startOffset === startContainer.textContent.length
-            ) {
-                const nextTextNode =
-                    startContainer.nextElementSibling?.firstChild;
+            const currentWord = EditorUtils.getCurrentWord(
+                startContainer.textContent,
+                startOffset
+            );
 
-                if (nextTextNode) {
-                    this.joinEndIntoStart(
-                        range,
-                        startContainer,
-                        nextTextNode,
-                        startOffset
-                    );
-                }
+            const nextTextNode = startContainer.nextElementSibling?.firstChild;
+
+            if (
+                !EditorUtils.textNodeFormatted(startContainer) &&
+                startOffset === startContainer.textContent.length &&
+                !(
+                    currentWord.endsWith("#") ||
+                    currentWord.endsWith("@") ||
+                    /#\w+|@\w+/.test(currentWord)
+                ) &&
+                nextNode &&
+                EditorUtils.elementNodeFormatted(nextNode)
+            ) {
+                this.joinEndIntoStart(
+                    range,
+                    startContainer,
+                    nextTextNode,
+                    startOffset
+                );
             }
         }
 
-        /**
-         * TODO (Abdelrahman): Still needs to be implemented properly.
-         * This technique isn't even at feature parity with what I had
-         * before, let alone implementing the extra functionality I
-         * would like to add.
-         */
-
-        const { startContainer, startOffset } = range;
-
-        const text = startContainer.textContent;
-
-        const match = text.match(hashtagOrMentionRegex);
-
-        if (
-            EditorUtils.textNodeFormatted(startContainer) &&
-            (!hashtagOrMentionRegex.test(text) || match)
-        ) {
-            this.removeTextFormatting(range, startContainer, 0, startOffset);
-        }
-
-        if (match) {
-            const currentNode = range.startContainer;
-
-            range.setStart(currentNode, match.index);
-            range.setEnd(currentNode, match.index + match[0].length);
-
-            const hashtagNode = document.createElement("span");
-            hashtagNode.className = "hashtag";
-
-            range.surroundContents(hashtagNode);
-
-            range.setStart(hashtagNode.firstChild, startOffset - match.index);
-            range.collapse(true);
-        }
-
-        // this.checkCurrentWord(range);
+        this.checkCurrentWord(range);
     },
 
     addNonWordCharInSameContainer: function (editor, range) {
@@ -797,6 +780,100 @@ const EditorCommon = {
                 (word[0] === "@" && word[word.length - 1] === "#"))
         ) {
             this.unformatLastChar(range, startContainer, word);
+        } else if (
+            !EditorUtils.textNodeFormatted(startContainer) &&
+            startOffset === startContainer.textContent.length &&
+            hashtagOrMentionRegex.test(startContainer.textContent) &&
+            startContainer.nextElementSibling &&
+            startContainer.nextElementSibling.className === "hashtag"
+        ) {
+            const match = startContainer.textContent.match(
+                hashtagOrMentionRegex
+            );
+
+            const formattedTextNode =
+                startContainer.nextElementSibling.firstChild;
+
+            const nodeText = formattedTextNode.textContent;
+
+            startContainer.textContent = startContainer.textContent.slice(
+                0,
+                match.index
+            );
+
+            formattedTextNode.textContent = match[0];
+
+            let textNode;
+
+            if (
+                formattedTextNode.parentElement.nextSibling &&
+                formattedTextNode.parentElement.nextSibling.nodeType === 3
+            ) {
+                textNode = formattedTextNode.parentElement.nextSibling;
+
+                textNode.textContent = nodeText + textNode.textContent;
+            } else {
+                textNode = document.createTextNode(nodeText);
+
+                // We find the original text node in the paragraph and add 1
+                // to the offset because we want to add the new text node
+                // after formatted element
+                const offset =
+                    EditorUtils.findNodeInParent(
+                        startContainer,
+                        startContainer.parentElement
+                    ) + 1;
+
+                range.setStart(startContainer.parentElement, offset);
+                range.collapse(true);
+
+                range.insertNode(textNode);
+            }
+
+            range.setStart(formattedTextNode, match[0].length);
+            range.collapse(true);
+        } else if (
+            EditorUtils.textNodeFormatted(startContainer) &&
+            startOffset === 1 &&
+            (startContainer.textContent.startsWith("#@") ||
+                startContainer.textContent.startsWith("@#"))
+        ) {
+            const firstChar = startContainer.textContent[0];
+
+            startContainer.textContent = startContainer.textContent.slice(1);
+
+            const formattedElement = startContainer.parentElement;
+            const parentParagraph =
+                EditorUtils.findParentParagraph(formattedElement);
+
+            // We got the element location in the paragraph and subtract 1 from
+            // it because we want to place the new text node before the element
+            const offset =
+                EditorUtils.findNodeInParent(
+                    formattedElement,
+                    parentParagraph
+                ) - 1;
+
+            let textNode;
+
+            if (
+                formattedElement.previousSibling &&
+                formattedElement.previousSibling.nodeType === 3
+            ) {
+                textNode = formattedElement.previousSibling;
+
+                textNode.textContent += firstChar;
+            } else {
+                textNode = document.createTextNode(firstChar);
+
+                range.setStart(parentParagraph, offset);
+                range.collapse(true);
+
+                range.insertNode(textNode);
+            }
+
+            range.setStart(textNode, textNode.textContent.length);
+            range.collapse(true);
         } else if (
             EditorUtils.wordMatchesPattern(word) &&
             !EditorUtils.textNodeFormatted(startContainer)
