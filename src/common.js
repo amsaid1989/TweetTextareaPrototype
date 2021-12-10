@@ -114,15 +114,6 @@ const EditorCommon = {
     },
 
     addOrDeleteInSameContainer: function (editor, range) {
-        /**
-         * DEBUG (Abdelrahman): While implementing proper formatting when
-         * a hashtag and a mention come after the other without any
-         * nonWordPattern-matching character separating them, a bug was
-         * introduced where adding characters that don't match the
-         * nonWordPattern at the beginning of a formatted element won't
-         * reset the formatting as it is supposed to do.
-         */
-
         if (!EditorUtils.chromeBrowser()) {
             /**
              * This addresses a behaviour in Firefox where two
@@ -162,13 +153,18 @@ const EditorCommon = {
             if (
                 !EditorUtils.textNodeFormatted(startContainer) &&
                 startOffset === startContainer.textContent.length &&
-                !(
-                    currentWord.endsWith("#") ||
-                    currentWord.endsWith("@") ||
-                    /#\w+|@\w+/.test(currentWord)
-                ) &&
-                nextNode &&
-                EditorUtils.elementNodeFormatted(nextNode)
+                /**
+                 * TODO (Abdelrahman): Test this part extensively to
+                 * make sure that commenting out the next condition
+                 * doesn't break some aspects of the code.
+                 */
+                // !(
+                //     currentWord.endsWith("#") ||
+                //     currentWord.endsWith("@") ||
+                //     /#\w+|@\w+/.test(currentWord)
+                // ) &&
+                nextTextNode &&
+                EditorUtils.textNodeFormatted(nextTextNode)
             ) {
                 this.joinEndIntoStart(
                     range,
@@ -176,6 +172,8 @@ const EditorCommon = {
                     nextTextNode,
                     startOffset
                 );
+
+                editor.normalize();
             }
         }
 
@@ -811,6 +809,7 @@ const EditorCommon = {
 
     formatOrResetWord: function (range, startContainer, startOffset, word) {
         if (
+            EditorUtils.textNodeFormatted(startContainer) &&
             startOffset === startContainer.textContent.length &&
             ((word[0] === "#" && word[word.length - 1] === "@") ||
                 (word[0] === "@" && word[word.length - 1] === "#"))
@@ -871,8 +870,9 @@ const EditorCommon = {
         } else if (
             EditorUtils.textNodeFormatted(startContainer) &&
             startOffset === 1 &&
-            (startContainer.textContent.startsWith("#@") ||
-                startContainer.textContent.startsWith("@#"))
+            startContainer.textContent.startsWith("@#")
+            // (startContainer.textContent.startsWith("#@") ||
+            //     startContainer.textContent.startsWith("@#"))
         ) {
             const firstChar = startContainer.textContent[0];
 
@@ -938,8 +938,9 @@ const EditorCommon = {
                 );
             }
         } else if (
-            !EditorUtils.wordMatchesPattern(word) &&
-            EditorUtils.textNodeFormatted(startContainer)
+            EditorUtils.textNodeFormatted(startContainer) &&
+            (!EditorUtils.wordMatchesPattern(word) ||
+                startContainer.textContent.startsWith("#@"))
         ) {
             this.removeTextFormatting(range, startContainer, 0, startOffset);
         }

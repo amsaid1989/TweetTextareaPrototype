@@ -97,47 +97,47 @@ const EditorUtils = {
     },
 
     wordMatchesPattern: function (word) {
-        /**
-         * In this function, the matching against the regex pattern
-         * is done using the String.match method rather than the
-         * RegExp.test method.
-         * This is because here were are matching the current word,
-         * so we need the entire word to match the pattern. This
-         * could be achieved by using the '^' and '$' tokens in
-         * the pattern itself, but that makes it harder to use the
-         * pattern in other cases, where we just want to test if
-         * a string contains a word that matches the pattern,
-         * even if the entire string doesn't match.
-         * Therefore, I resorted to using the String.match method
-         * and testing the index of the match to make sure it starts
-         * at the beginning of the word
-         */
+        const globalHashtagRegex = new RegExp(hashtagRegex.source, "g");
+        const globalMentionRegex = new RegExp(mentionRegex.source, "g");
 
-        const updatedHashtagRegex = new RegExp(
-            /[^#\w]*/.source + hashtagRegex.source + /[^#\w]*/.source
-        );
-        const updatedMentionRegex = new RegExp(
-            /[^@\w]*/.source + mentionRegex.source + /[^@\w]*/.source
-        );
-        const globalPattern = new RegExp(
-            updatedHashtagRegex.source + "|" + updatedMentionRegex.source,
-            "g"
-        );
+        const hashtagMatches = Array.from(word.matchAll(globalHashtagRegex));
+        const hashtagCharMatches = Array.from(word.matchAll(/#/g));
+        const mentionMatches = Array.from(word.matchAll(globalMentionRegex));
+        const mentionCharMatches = Array.from(word.matchAll(/@/g));
 
-        return globalPattern.test(word);
+        if (hashtagMatches.length === 0 && mentionMatches.length === 0) {
+            return false;
+        }
 
-        // const match = word.match(hashtagOrMentionRegex);
+        if (hashtagCharMatches.length > 1) {
+            if (
+                (hashtagMatches[0].index > 0 &&
+                    (mentionMatches.length === 0 ||
+                        mentionMatches[0].index > 0)) ||
+                (hashtagMatches[0].index === 0 &&
+                    hashtagMatches[0][0].length === hashtagCharMatches[1].index)
+            ) {
+                return false;
+            }
+        }
 
-        // if (
-        //     match &&
-        //     match.index === 0 &&
-        //     (word[match[0].length] === undefined ||
-        //         nonWordPattern.test(word[match[0].length]))
-        // ) {
-        //     return true;
-        // }
+        if (mentionCharMatches.length > 1) {
+            if (
+                (mentionMatches[0].index > 0 &&
+                    (hashtagMatches.length === 0 ||
+                        hashtagMatches[0].index > 0)) ||
+                (mentionMatches[0].index === 0 &&
+                    mentionMatches[0][0].length === mentionCharMatches[1].index)
+            ) {
+                return false;
+            }
+        }
 
-        // return false;
+        if (word.startsWith("#@")) {
+            return false;
+        }
+
+        return true;
     },
 
     getWordBoundaries: function (text, currentIndex) {
