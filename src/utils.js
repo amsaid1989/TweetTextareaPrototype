@@ -96,14 +96,14 @@ const EditorUtils = {
         return match && match.index === 0 && match[0].length === text.length;
     },
 
-    wordMatchesPattern: function (word) {
+    textMatchesPattern: function (text) {
         const globalHashtagRegex = new RegExp(hashtagRegex.source, "g");
         const globalMentionRegex = new RegExp(mentionRegex.source, "g");
 
-        const hashtagMatches = Array.from(word.matchAll(globalHashtagRegex));
-        const hashtagCharMatches = Array.from(word.matchAll(/#/g));
-        const mentionMatches = Array.from(word.matchAll(globalMentionRegex));
-        const mentionCharMatches = Array.from(word.matchAll(/@/g));
+        const hashtagMatches = Array.from(text.matchAll(globalHashtagRegex));
+        const hashtagCharMatches = Array.from(text.matchAll(/#/g));
+        const mentionMatches = Array.from(text.matchAll(globalMentionRegex));
+        const mentionCharMatches = Array.from(text.matchAll(/@/g));
 
         if (hashtagMatches.length === 0 && mentionMatches.length === 0) {
             return false;
@@ -125,7 +125,7 @@ const EditorUtils = {
             if (
                 (mentionMatches[0].index > 0 &&
                     (hashtagMatches.length === 0 ||
-                        hashtagMatches[0].index > 0)) ||
+                        hashtagMatches[0].index > 1)) ||
                 (mentionMatches[0].index === 0 &&
                     mentionMatches[0][0].length === mentionCharMatches[1].index)
             ) {
@@ -133,7 +133,7 @@ const EditorUtils = {
             }
         }
 
-        if (word.startsWith("#@")) {
+        if (text.startsWith("#@")) {
             return false;
         }
 

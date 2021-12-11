@@ -149,12 +149,46 @@ const EditorChrome = {
                 startOffset === startContainer.textContent.length &&
                 !nonWordPattern.test(nextTextNode.textContent[0])
             ) {
-                EditorCommon.joinEndIntoStart(
-                    range,
-                    startContainer,
-                    nextTextNode,
-                    startOffset
-                );
+                const combinedText =
+                    startContainer.textContent + nextTextNode.textContent;
+
+                const match = combinedText.match(hashtagOrMentionRegex);
+
+                if (
+                    !EditorUtils.textMatchesPattern(combinedText) ||
+                    match[0].length ===
+                        startContainer.textContent.length +
+                            nextTextNode.textContent.length
+                ) {
+                    EditorCommon.joinEndIntoStart(
+                        range,
+                        startContainer,
+                        nextTextNode,
+                        startOffset
+                    );
+                } else if (
+                    match[0].length > startContainer.textContent.length &&
+                    match[0].length <
+                        startContainer.textContent.length +
+                            nextTextNode.textContent.length
+                ) {
+                    const removeEnd =
+                        match[0].length - startContainer.textContent.length;
+
+                    range.setStart(nextTextNode, 0);
+                    range.setEnd(nextTextNode, removeEnd);
+
+                    const text = range.toString();
+
+                    range.deleteContents();
+
+                    const offset = startContainer.textContent.length;
+
+                    startContainer.textContent += text;
+
+                    range.setStart(startContainer, offset);
+                    range.collapse(true);
+                }
             }
         }
 

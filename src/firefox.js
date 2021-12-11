@@ -102,12 +102,22 @@ const EditorFirefox = {
                     prevTextNode &&
                     !nonWordPattern.test(prevText[prevText.length - 1])
                 ) {
-                    EditorCommon.joinEndIntoStart(
-                        range,
-                        prevTextNode,
-                        startContainer,
-                        prevTextNode.textContent.length
-                    );
+                    const combinedText =
+                        prevTextNode.textContent + startContainer.textContent;
+
+                    const match = combinedText.match(hashtagOrMentionRegex);
+
+                    if (
+                        !EditorUtils.textMatchesPattern(combinedText) ||
+                        match[0].length > prevTextNode.textContent.length
+                    ) {
+                        EditorCommon.joinEndIntoStart(
+                            range,
+                            prevTextNode,
+                            startContainer,
+                            prevTextNode.textContent.length
+                        );
+                    }
                 }
             } else if (
                 startOffset === nodeText.length &&
@@ -130,7 +140,10 @@ const EditorFirefox = {
                 if (
                     nextTextNode &&
                     startOffset === startContainer.textContent.length &&
-                    !nonWordPattern.test(nextTextNode.textContent[0])
+                    !nonWordPattern.test(nextTextNode.textContent[0]) &&
+                    !EditorUtils.textMatchesPattern(
+                        startContainer.textContent + nextTextNode.textContent
+                    )
                 ) {
                     EditorCommon.joinEndIntoStart(
                         range,

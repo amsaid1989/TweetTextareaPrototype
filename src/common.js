@@ -192,7 +192,7 @@ const EditorCommon = {
             );
 
         if (
-            EditorUtils.wordMatchesPattern(prevWord) &&
+            EditorUtils.textMatchesPattern(prevWord) &&
             (!startContainer.previousSibling ||
                 (startContainer.previousSibling &&
                     !startContainer.textContent.startsWith(prevWord)))
@@ -213,7 +213,7 @@ const EditorCommon = {
             updatedStartOffset = 1;
         }
 
-        if (EditorUtils.wordMatchesPattern(nextWord)) {
+        if (EditorUtils.textMatchesPattern(nextWord)) {
             const container = updatedStartContainer || startContainer;
             const offset = updatedStartOffset || startOffset;
 
@@ -685,7 +685,9 @@ const EditorCommon = {
                     // Ensure that the text in the startContainer still
                     // matches the pattern of hashtag
                     if (
-                        !EditorUtils.allTextMatchesPattern(startContainer) &&
+                        !EditorUtils.textMatchesPattern(
+                            startContainer.textContent
+                        ) &&
                         EditorUtils.textNodeFormatted(startContainer)
                     ) {
                         const updatedTextNode = this.resetFormatOfTextNode(
@@ -695,6 +697,23 @@ const EditorCommon = {
 
                         range.setStart(updatedTextNode, startOffset);
                         range.collapse(true);
+                    } else if (
+                        EditorUtils.textMatchesPattern(
+                            startContainer.textContent
+                        ) &&
+                        !EditorUtils.textNodeFormatted(startContainer)
+                    ) {
+                        const currentWord = EditorUtils.getCurrentWord(
+                            startContainer.textContent,
+                            startOffset
+                        ).trim();
+
+                        this.formatOrResetWord(
+                            range,
+                            startContainer,
+                            startOffset,
+                            currentWord
+                        );
                     }
                 }
             } else {
@@ -734,7 +753,7 @@ const EditorCommon = {
 
                 if (
                     !EditorUtils.textNodeFormatted(lastTextNodeInPrev) &&
-                    EditorUtils.wordMatchesPattern(lastWord)
+                    EditorUtils.textMatchesPattern(lastWord)
                 ) {
                     const wordStart = nodeText.length - lastWord.length;
                     const wordEnd = nodeText.length;
@@ -768,7 +787,7 @@ const EditorCommon = {
 
                 if (
                     !EditorUtils.textNodeFormatted(firstTextNodeInCurrent) &&
-                    EditorUtils.wordMatchesPattern(currentWord)
+                    EditorUtils.textMatchesPattern(currentWord)
                 ) {
                     const word = currentWord.match(hashtagOrMentionRegex)[0];
                     const wordStart = 0;
@@ -910,10 +929,7 @@ const EditorCommon = {
 
             range.setStart(textNode, textNode.textContent.length);
             range.collapse(true);
-        } else if (
-            EditorUtils.wordMatchesPattern(word) &&
-            !EditorUtils.textNodeFormatted(startContainer)
-        ) {
+        } else if (EditorUtils.textMatchesPattern(word)) {
             const match = startContainer.textContent.match(
                 hashtagOrMentionRegex
             );
@@ -921,13 +937,22 @@ const EditorCommon = {
             const wordStart = match.index;
             const wordEnd = match.index + match[0].length;
 
+            const prevTextNode =
+                startContainer.previousElementSibling?.firstChild ||
+                startContainer.previousSibling;
+
             if (
-                startContainer.textContent[wordStart - 1] &&
-                (nonWordPattern.test(
-                    startContainer.textContent[wordStart - 1]
-                ) ||
-                    word.startsWith("@#") ||
-                    word.startsWith("#@"))
+                !EditorUtils.textNodeFormatted(startContainer) &&
+                ((wordStart === 0 &&
+                    (!EditorUtils.textMatchesPattern(
+                        prevTextNode.textContent
+                    ) ||
+                        !EditorUtils.textNodeFormatted(prevTextNode))) ||
+                    (startContainer.textContent[wordStart - 1] &&
+                        (nonWordPattern.test(
+                            startContainer.textContent[wordStart - 1]
+                        ) ||
+                            word.startsWith("@#"))))
             ) {
                 this.formatWord(
                     range,
@@ -936,13 +961,115 @@ const EditorCommon = {
                     wordStart,
                     wordEnd
                 );
+            } else if (match[0].length < startContainer.textContent.length) {
+                let removeStart, removeEnd, before;
+
+                if (wordStart > 0) {
+                    removeStart = 0;
+                    removeEnd = wordStart;
+                    before = true;
+                } else {
+                    removeStart = wordEnd;
+                    removeEnd = startContainer.textContent.length;
+                    before = false;
+                }
+
+                range.setStart(startContainer, removeStart);
+                range.setEnd(startContainer, removeEnd);
+
+                const text = range.toString();
+
+                range.deleteContents();
+
+                if (before && prevTextNode) {
+                    const offset = prevTextNode.textContent.length;
+
+                    prevTextNode.textContent += text;
+
+                    range.setStart(prevTextNode, offset);
+                    range.collapse(true);
+                } else if (before && !prevTextNode) {
+                    const formattedElement = startContainer.parentElement;
+                    const parentParagraph =
+                        EditorUtils.findParentParagraph(formattedElement);
+                    const offset = EditorUtils.findNodeInParent(
+                        formattedElement,
+                        parentParagraph
+                    );
+
+                    const textNode = document.createTextNode(text);
+
+                    range.setStart(parentParagraph, offset - 1);
+                    range.collapse(true);
+
+                    range.insertNode(textNode);
+
+                    let startNode, updatedOffset;
+
+                    if (textNode.textContent.length >= startOffset) {
+                        startNode = textNode;
+                        updatedOffset = startOffset;
+                    } else {
+                        startNode = startContainer;
+                        updatedOffset =
+                            startOffset - textNode.textContent.length;
+                    }
+
+                    range.setStart(startNode, updatedOffset);
+                    range.collapse(true);
+                } else {
+                    const formattedElement = startContainer.parentElement;
+                    const parentParagraph =
+                        EditorUtils.findParentParagraph(formattedElement);
+                    const offset = EditorUtils.findNodeInParent(
+                        formattedElement,
+                        parentParagraph
+                    );
+
+                    const textNode = document.createTextNode(text);
+
+                    range.setStart(parentParagraph, offset);
+                    range.collapse(true);
+
+                    range.insertNode(textNode);
+
+                    let startNode, updatedOffset;
+
+                    if (startContainer.textContent.length >= startOffset) {
+                        startNode = startContainer;
+                        updatedOffset = startOffset;
+                    } else {
+                        startNode = textNode;
+                        updatedOffset =
+                            startOffset - startContainer.textContent.length;
+                    }
+
+                    range.setStart(startNode, updatedOffset);
+                    range.collapse(true);
+                }
             }
         } else if (
             EditorUtils.textNodeFormatted(startContainer) &&
-            (!EditorUtils.wordMatchesPattern(word) ||
+            (!EditorUtils.textMatchesPattern(word) ||
                 startContainer.textContent.startsWith("#@"))
         ) {
             this.removeTextFormatting(range, startContainer, 0, startOffset);
+
+            // Check the word that results after removing format
+            // in case it needs to be formatted
+            editor.normalize();
+
+            const currentWord = EditorUtils.getCurrentWord(
+                range.startContainer.textContent,
+                range.startOffset
+            ).trim();
+
+            this.formatOrResetWord(
+                range,
+                range.startContainer,
+                range.startOffset,
+                currentWord
+            );
         }
 
         editor.normalize();
