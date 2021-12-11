@@ -40,9 +40,9 @@ All the Javascript code that is used by this prototype is included in the `src` 
 
 1) `main.js` - This is the main module that is loaded by the `index.html`. It mainly sets up the event listener on the textarea.
 2) `common.js` - This module includes functions that handle the user input in the same way across both Firefox and Chromium-based browsers.
-3) `firefox.js` - This modules includes functions that are specific to Firefox.
-4) `chrome.js` - This modules includes functions that are specific to Chromium-based browsers.
-5) `utils.js` - This modules includes utility functions that don't handle user input directly, but are used by the other modules for specific tasks.
+3) `firefox.js` - This module includes functions that are specific to Firefox.
+4) `chrome.js` - This module includes functions that are specific to Chromium-based browsers.
+5) `utils.js` - This module includes utility functions that don't handle user input directly, but are used by the other modules for specific tasks.
 6) `patterns.js` - This module include the `Regex` patterns that are used by the other modules to test the user input for what should be highlighted.
 
 ## Final notes
